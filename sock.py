@@ -11,6 +11,7 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
+import asyncio
 import struct
 import socket
 import collections
@@ -18,13 +19,23 @@ import logging
 
 import constants
 
-class Connection:
-    def __init__(self, ip=constants.VCC_DEFAULT_IP, port=constants.VCC_PORT):
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.bind(("0.0.0.0", 0))
-        self._sock.connect((ip, port))
+class AsyncConnection:
+    # The init method actually is init
+    def __init__(self, ip=constants.VCC_DEFAULT_IP, port=constants.VCC_PORT, usrname: str=""):
+        self.ip = ip
+        self.port = port
+        self.usrname = usrname
     
-    def send(
+    async def init(self):
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._sock.setblocking(False)
+        self._sock.bind(("0.0.0.0", 0))
+        loop = asyncio.get_event_loop()
+        await loop.sock_connect(self._sock, (self.ip, self.port))
+        return self
+
+    
+    async def send(
         self, *, 
         magic: int = constants.VCC_MAGIC, 
         type: int = constants.REQ_MSG_SEND, 
@@ -34,7 +45,8 @@ class Connection:
         usrname: str = "", 
         msg: str = ""
     ):
-        self._sock.send(struct.pack(
+        loop = asyncio.get_event_loop()
+        await loop.sock_sendall(self._sock, struct.pack(
             constants.VCC_REQUEST_FORMAT,
             socket.htonl(magic), 
             socket.htonl(type),
@@ -44,8 +56,10 @@ class Connection:
             (usrname + "\0").encode(),
             (msg + "\0").encode()
         ))
-    def recv(self):
-        tuple_data = struct.unpack(constants.VCC_REQUEST_FORMAT, self._sock.recv(constants.REQ_SIZE))
+
+    async def recv(self):
+        loop = asyncio.get_event_loop()
+        tuple_data = struct.unpack(constants.VCC_REQUEST_FORMAT, await loop.sock_recv(self._sock, constants.REQ_SIZE))
         magic: int
         type: int
         uid: int

@@ -1,3 +1,4 @@
+#!/bin/python3
 # This file is part of vcc.py.
 
 # vcc.py is free software: you can redistribute it and/or modify it under the terms of the GNU General 
@@ -13,16 +14,22 @@
 
 import _thread as thread
 
+import asyncio
 import sys
 from getpass import getpass
 import argparse
 import logging
-import time
+import signal
 from datetime import datetime
 
-from sock import Connection
+from sock import AsyncConnection
 from constants import *
+from commands import do_cmd
 import pretty
+
+async def ainput(*args, **kwargs):
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, lambda: input(*args, **kwargs))
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Talk with others using %(prog)s :)")
@@ -31,56 +38,67 @@ def parse_args():
     parser.add_argument(dest="ip", metavar="ip", nargs="?", default=VCC_DEFAULT_IP, help="the ip address of the server")
     return parser.parse_args()
 
-def recv_loop(conn: Connection):
+async def recv_loop(conn: AsyncConnection):
     while True:
-        type, uid, session, flags, usrname, msg = conn.recv()
-        time = datetime.now()
-        pretty.show_msg(usrname, msg, newlinefirst=True)
-        pretty.prompt(curr_usrname)
+        type, uid, session, flags, usrname, msg = await conn.recv()
+        if type == REQ_MSG_NEW:
+            pretty.show_msg(usrname, msg, newlinefirst=True)
 
-def request_recv_loop(conn: Connection):
+async def request_recv_loop(conn: AsyncConnection):
     while True:
-        time.sleep(1)
-        conn.send(type=REQ_MSG_NEW)
+        await asyncio.sleep(1)
+        await conn.send(type=REQ_MSG_NEW)
 
-def input_send_loop(conn: Connection):
+async def input_send_loop(conn: AsyncConnection):
     while True:
-        time = datetime.now()
         pretty.prompt(curr_usrname)
-        msg = input("")
-        conn.send(
+        msg = await ainput("")
+        if not msg:
+            continue
+        if msg[0] == "-":
+            await do_cmd(msg, conn)
+            continue
+        await conn.send(
             type=REQ_MSG_SEND,
             usrname=curr_usrname,
             msg=msg
         )
         pretty.show_msg(curr_usrname, msg)
 
-def main():
-    connection.send(
+connection: AsyncConnection
+
+async def main():
+    global connection
+    connection = await AsyncConnection(args.ip, args.port, curr_usrname).init()
+    await connection.send(
         type=REQ_CTL_LOGIN,
         usrname=curr_usrname,
         msg=password
     )
-    type, uid, *_ = connection.recv()
+    type, uid, *_ = await connection.recv()
     if type != REQ_CTL_LOGIN:
         raise Exception("Invalid response received")
     if not uid:
         raise Exception("login failed: wrong password or user doesn't exists")
     print("ready.")
-    thread.start_new_thread(recv_loop, (connection, ))
-    thread.start_new_thread(request_recv_loop, (connection, ))
-    input_send_loop(connection)
+    await asyncio.gather(
+        asyncio.create_task(recv_loop(connection)),
+        asyncio.create_task(request_recv_loop(connection)),
+        asyncio.create_task(input_send_loop(connection))
+    )
     
     
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
     args = parse_args()
-    connection = Connection(args.ip, args.port)
+    if not (sys.stdout.isatty() and sys.stderr.isatty() and sys.stdin.isatty()):
+        logging.error("stdout, stderr or stdin is redirected. ")
+        sys.exit(1)
     curr_usrname: str = args.user if args.user else input("login as: ")
     password = getpass("password: ")
     try:
-        main()
+        asyncio.run(main())
     except Exception as e:
         logging.error(e)
         sys.exit(1)
