@@ -11,13 +11,28 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
-from typing import Callable, Coroutine, NoReturn, Any, Union, Mapping
+from typing import Callable, Coroutine, NoReturn, Any, Mapping
 import sys
 
 import pretty
 
 from sock import AsyncConnection as Connection
 from constants import *
+
+async def do_cmd_currs(conn: Connection) -> None:
+    """Get current session id"""
+    print(conn.sess)
+
+async def do_cmd_swtch(conn: Connection) -> None:
+    """Switch session"""
+    print(f"Old session id: {conn.sess}")
+    conn.sess = int(input("New session id: "))
+    # join session
+    await conn.send(type=REQ.CTL_JOINS, usrname=conn.usrname, session=conn.sess)
+
+async def do_cmd_newse(conn: Connection) -> None:
+    """Create a new session"""
+    await conn.send(type=REQ.CTL_NEWSE, usrname=conn.usrname, msg=input("Name of new session: "))
 
 async def do_cmd_lsse(conn: Connection) -> None:
     """List the sessions"""
@@ -58,7 +73,7 @@ def is_banned(user: str) -> bool:
     """Get if someone is banned"""
     return user in ban_list
 
-do_cmd_map: Mapping[str, Callable[[Connection], Coroutine[Any, Any, Union[None, NoReturn]]]] = {
+do_cmd_map: Mapping[str, Callable[[Connection], Coroutine[Any, Any, None | NoReturn]]] = {
     "-help": do_cmd_help,
     "-cqd": do_cmd_cqd,
     "-quit": do_cmd_quit,
@@ -66,7 +81,10 @@ do_cmd_map: Mapping[str, Callable[[Connection], Coroutine[Any, Any, Union[None, 
     "-ban": do_cmd_ban,
     "-unban": do_cmd_unban,
     "-ls": do_cmd_ls,
-    "-lsse": do_cmd_lsse
+    "-lsse": do_cmd_lsse,
+    "-newse": do_cmd_newse,
+    "-currs": do_cmd_currs,
+    "-swtch": do_cmd_swtch
 }
 
 async def do_cmd(string: str, conn: Connection) -> None:

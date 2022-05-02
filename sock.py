@@ -14,19 +14,24 @@
 import asyncio
 import struct
 import socket
-import collections
-import logging
 
 import constants
 
+def bad_str(string: str) -> str:
+    return repr(string)[1:-1]
+
+def bad_bytes(string: bytes) -> str:
+    return repr(string)[2:-1]
+
 class AsyncConnection:
     """A wrapper of socket which can recv or send messages and it's most method is asynchronous"""
-    def __init__(self, ip: str=constants.VCC_DEFAULT_IP, port: int=constants.VCC_PORT, usrname: str="") -> None:
+    def __init__(self, ip: str=constants.VCC_DEFAULT_IP, port: int=constants.VCC_PORT, usrname: str="", sess: int=0) -> None:
         """It will only save informations, you must call init function"""
         self.ip = ip
         self.port = port
         self.usrname = usrname
         self._waiting_for_recv = False
+        self.sess = sess
     
     async def init(self) -> "AsyncConnection":
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -71,9 +76,17 @@ class AsyncConnection:
         usrname: bytes
         msg: bytes
         magic, type, uid, session, flags, usrname, msg = tuple_data
+        try:
+            decode_username = usrname.decode().split("\x00")[0]
+        except UnicodeDecodeError:
+            decode_username = bad_bytes(usrname.split(b"\x00")[0])
+        try:
+            decode_msg = msg.decode().split("\x00")[0]
+        except UnicodeDecodeError:
+            decode_msg = bad_bytes(msg.split(b"\x00")[0])
         if socket.ntohl(magic) != constants.VCC_MAGIC:
             raise Exception("Incorrect magin number")
-        return socket.ntohl(type), socket.ntohl(uid), socket.ntohl(session), flags, usrname.decode().split("\x00")[0], usrname, msg.decode().split("\x00", 1)[0], msg
+        return socket.ntohl(type), socket.ntohl(uid), socket.ntohl(session), flags, decode_username, usrname, decode_msg, msg
     
     async def wait_until_recv(self) -> None:
         self._waiting_for_recv = True

@@ -50,13 +50,13 @@ async def recv_loop(conn: AsyncConnection) -> NoReturn:
             if msg == "CQD":
                 pretty.cqd(usrname)
             else:
-                pretty.show_msg(usrname, msg, newlinefirst=True)
+                pretty.show_msg(usrname, msg, session, newlinefirst=True)
         else:
             do_bh(type, uid, usrname, usrname_raw, msg, msg_raw)
 
 async def input_send_loop(conn: AsyncConnection) -> NoReturn:
     while True:
-        pretty.prompt(curr_usrname)
+        pretty.prompt(curr_usrname, conn.sess)
         msg = await ainput("")
         if not msg:
             continue
@@ -68,7 +68,7 @@ async def input_send_loop(conn: AsyncConnection) -> NoReturn:
             usrname=curr_usrname,
             msg=msg
         )
-        pretty.show_msg(curr_usrname, msg)
+        pretty.show_msg(curr_usrname, msg, conn.sess)
 
 connection: AsyncConnection
 
@@ -107,8 +107,4 @@ if __name__ == "__main__":
     logging.debug("got username")
     password = getpass("password: ")
     logging.debug("got password")
-    try:
-        asyncio.run(main())
-    except Exception as e:
-        logging.error(e)
-        sys.exit(1)
+    asyncio.run(main())

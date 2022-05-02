@@ -50,22 +50,27 @@ usrname_theme = Color(fg=LIGHTBLUE, bg=BLACK, mode=MODE_LINE)
 msg_theme = Color(fg=YELLOW, bg=BLACK, mode=MODE_HIGHLIGHT)
 time_theme = Color(fg=YELLOW, bg=BLACK, mode=MODE_HIGHLIGHT)
 cqd_theme = Color(fg=BLACK, bg=RED, mode=MODE_BLINK)
+session_theme = Color(fg=RED, bg=BLACK, mode=MODE_HIGHLIGHT)
 
 def use_theme(theme: Color, text: str) -> str:
     """change some text to the color"""
     return f"\033[{theme.mode};{theme.fg};{theme.bg}m{text}\033[0m"
 
-def show_msg(username: str, message: str, newlinefirst: bool=False) -> None:
+def show_msg(username: str, message: str, sess: int, newlinefirst: bool=False) -> None:
     """display someone's message"""
     time = datetime.now()
-    str = f"[{use_theme(time_theme, f'{time.hour:02}:{time.minute:02}')}] {use_theme(usrname_theme, username)}@: {use_theme(msg_theme, message)}"
+    str = f"[{use_theme(time_theme, f'{time.hour:02}:{time.minute:02}')}] {session(sess)} {use_theme(usrname_theme, username)}@: {use_theme(msg_theme, message)}"
     str = "\r" + str if newlinefirst else str + "\n"
     print(str, end="")
+
+def session(sess: int) -> str:
+    """display the session"""
+    return use_theme(session_theme, f'#{sess:03}')
 
 def cqd(username: str) -> None:
     """show the cqd"""
     print(f"\n{use_theme(cqd_theme, 'CQD')} {username} send CQD. ", end="")
 
-def prompt(username: str) -> None:
+def prompt(username: str, sess: int) -> None:
     """display the prompt"""
-    print(f"{use_theme(usrname_theme, username)}$: ", end="")
+    print(f"{session(sess)} {use_theme(usrname_theme, username)}$: ", end="")
