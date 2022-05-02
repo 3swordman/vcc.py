@@ -19,11 +19,16 @@ import pretty
 from sock import AsyncConnection as Connection
 from constants import *
 
+async def do_cmd_lsse(conn: Connection) -> None:
+    """List the sessions"""
+    await conn.send(type=REQ.CTL_SESS, uid=0)
+    await conn.wait_until_recv()
+
 async def do_cmd_help(conn: Connection) -> None:
-    """Print help information from somebody"""
+    """Show information about every message. """
     for name in do_cmd_map:
-        _, msg = do_cmd_map[name]
-        print(f"{name + ': ':<8}{msg}")
+        func = do_cmd_map[name]
+        print(f"{name + ': ':<8}{func.__doc__}")
 
 async def do_cmd_cqd(conn: Connection) -> None:
     """Send a "cqd", that's an interesting thing"""
@@ -47,26 +52,27 @@ async def do_cmd_unban(conn: Connection) -> None:
 async def do_cmd_ls(conn: Connection) -> None:
     """List the users"""
     await conn.send(type=REQ.CTL_USRS, uid=0)
+    await conn.wait_until_recv()
 
 def is_banned(user: str) -> bool:
     """Get if someone is banned"""
     return user in ban_list
 
-do_cmd_map: Mapping[str, tuple[Callable[[Connection], Coroutine[Any, Any, Union[None, NoReturn]]], str]] = {
-    "-help": (do_cmd_help, "Show information about every message. "),
-    "-cqd": (do_cmd_cqd, "Raise CQD. "),
-    "-quit": (do_cmd_quit, "Disconnect to server and exit vcc. "),
-    "-exit": (do_cmd_quit, "Alias of -quit. "),
-    "-ban": (do_cmd_ban, "Don't receive more messages from somebody. "),
-    "-unban": (do_cmd_unban, "Receive more messages from somebody. "),
-    "-ls": (do_cmd_ls, "List the users. ")
+do_cmd_map: Mapping[str, Callable[[Connection], Coroutine[Any, Any, Union[None, NoReturn]]]] = {
+    "-help": do_cmd_help,
+    "-cqd": do_cmd_cqd,
+    "-quit": do_cmd_quit,
+    "-exit": do_cmd_quit,
+    "-ban": do_cmd_ban,
+    "-unban": do_cmd_unban,
+    "-ls": do_cmd_ls,
+    "-lsse": do_cmd_lsse
 }
 
 async def do_cmd(string: str, conn: Connection) -> None:
     """Run a command"""
     command = string.split(" ", 1)[0]
     try:
-        func, help_msg = do_cmd_map[command]
-        await func(conn)
+        await do_cmd_map[command](conn)
     except KeyError:
         print(f"Unknown command \"{command}\"", file=sys.stderr)

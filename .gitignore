@@ -1,4 +1,5 @@
 .vscode
 *.pyc
 .mypy_cache
+.dmypy.json
 __pycache__

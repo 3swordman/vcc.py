@@ -13,9 +13,13 @@
 
 from constants import *
 
+def do_lsse_bh(uid: int, msg_raw: bytes) -> None:
+    """List the sessions"""
+    for i in range(uid):
+        print(msg_raw[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
+
 def do_ls_bh(uid: int, msg_raw: bytes) -> None:
     """List the users"""
-    print()
     for i in range(uid):
         print(msg_raw[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
 
@@ -23,5 +27,7 @@ def do_bh(type: int, uid: int, username: str, username_raw: bytes, msg: str, msg
     match type:
         case REQ.CTL_USRS:
             do_ls_bh(uid, msg_raw)
+        case REQ.CTL_SESS:
+            do_lsse_bh(uid, msg_raw)
         case _:
-            pass
+            raise Exception(f"Unknown response type: {type}, please update and retry")

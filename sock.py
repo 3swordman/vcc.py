@@ -21,12 +21,12 @@ import constants
 
 class AsyncConnection:
     """A wrapper of socket which can recv or send messages and it's most method is asynchronous"""
-    # The init method actually is init
     def __init__(self, ip: str=constants.VCC_DEFAULT_IP, port: int=constants.VCC_PORT, usrname: str="") -> None:
-        """It will only save informations, you must """
+        """It will only save informations, you must call init function"""
         self.ip = ip
         self.port = port
         self.usrname = usrname
+        self._waiting_for_recv = False
     
     async def init(self) -> "AsyncConnection":
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -62,6 +62,7 @@ class AsyncConnection:
     async def recv(self) -> tuple[int, int, int, int, str, bytes, str, bytes]:
         loop = asyncio.get_event_loop()
         tuple_data = struct.unpack(constants.VCC_REQUEST_FORMAT, await loop.sock_recv(self._sock, constants.REQ_SIZE))
+        self._waiting_for_recv = False
         magic: int
         type: int
         uid: int
@@ -73,3 +74,8 @@ class AsyncConnection:
         if socket.ntohl(magic) != constants.VCC_MAGIC:
             raise Exception("Incorrect magin number")
         return socket.ntohl(type), socket.ntohl(uid), socket.ntohl(session), flags, usrname.decode().split("\x00")[0], usrname, msg.decode().split("\x00", 1)[0], msg
+    
+    async def wait_until_recv(self) -> None:
+        self._waiting_for_recv = True
+        while self._waiting_for_recv:
+            await asyncio.sleep(0.1)
