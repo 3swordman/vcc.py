@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/bin/env python3
 # This file is part of vcc.py.
 
 # vcc.py is free software: you can redistribute it and/or modify it under the terms of the GNU General 
@@ -12,44 +12,49 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
-import _thread as thread
-
 import asyncio
 import sys
 from getpass import getpass
 import argparse
 import logging
-import signal
-from datetime import datetime
+from typing import NoReturn
 
 from sock import AsyncConnection
 from constants import *
-from commands import do_cmd
+from commands import do_cmd, is_banned
+from bh import do_bh
 import pretty
 
-async def ainput(*args, **kwargs):
+async def ainput(prompt: str) -> str:
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, lambda: input(*args, **kwargs))
+    def input_handler() -> str:
+        try:
+            return input(prompt)
+        except KeyboardInterrupt:
+            return ""
+    return await loop.run_in_executor(None, input_handler)
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Talk with others using %(prog)s :)")
     parser.add_argument("-p", "--port", type=int, metavar="port", default=VCC_PORT, help="specified the port the server use (defualt: 46)")
     parser.add_argument("-u", "--user", type=str, metavar="username", help="the username you want to use")
     parser.add_argument(dest="ip", metavar="ip", nargs="?", default=VCC_DEFAULT_IP, help="the ip address of the server")
     return parser.parse_args()
 
-async def recv_loop(conn: AsyncConnection):
+async def recv_loop(conn: AsyncConnection) -> NoReturn:
     while True:
-        type, uid, session, flags, usrname, msg = await conn.recv()
-        if type == REQ_MSG_NEW:
-            pretty.show_msg(usrname, msg, newlinefirst=True)
+        type, uid, session, flags, usrname, usrname_raw, msg, msg_raw = await conn.recv()
+        if is_banned(usrname):
+            continue
+        if type == REQ.MSG_NEW:
+            if msg == "CQD":
+                pretty.cqd(usrname)
+            else:
+                pretty.show_msg(usrname, msg, newlinefirst=True)
+        else:
+            do_bh(type, uid, usrname, usrname_raw, msg, msg_raw)
 
-async def request_recv_loop(conn: AsyncConnection):
-    while True:
-        await asyncio.sleep(1)
-        await conn.send(type=REQ_MSG_NEW)
-
-async def input_send_loop(conn: AsyncConnection):
+async def input_send_loop(conn: AsyncConnection) -> NoReturn:
     while True:
         pretty.prompt(curr_usrname)
         msg = await ainput("")
@@ -59,7 +64,7 @@ async def input_send_loop(conn: AsyncConnection):
             await do_cmd(msg, conn)
             continue
         await conn.send(
-            type=REQ_MSG_SEND,
+            type=REQ.MSG_SEND,
             usrname=curr_usrname,
             msg=msg
         )
@@ -67,23 +72,26 @@ async def input_send_loop(conn: AsyncConnection):
 
 connection: AsyncConnection
 
-async def main():
+async def main() -> None:
     global connection
     connection = await AsyncConnection(args.ip, args.port, curr_usrname).init()
+    logging.debug("init the socket successful")
     await connection.send(
-        type=REQ_CTL_LOGIN,
+        type=REQ.CTL_LOGIN,
         usrname=curr_usrname,
         msg=password
     )
+    logging.debug("send the login request")
     type, uid, *_ = await connection.recv()
-    if type != REQ_CTL_LOGIN:
+    logging.debug("recv the login response")
+    if type != REQ.CTL_LOGIN:
         raise Exception("Invalid response received")
     if not uid:
         raise Exception("login failed: wrong password or user doesn't exists")
+    logging.debug("login successfully")
     print("ready.")
     await asyncio.gather(
         asyncio.create_task(recv_loop(connection)),
-        asyncio.create_task(request_recv_loop(connection)),
         asyncio.create_task(input_send_loop(connection))
     )
     
@@ -96,7 +104,9 @@ if __name__ == "__main__":
         logging.error("stdout, stderr or stdin is redirected. ")
         sys.exit(1)
     curr_usrname: str = args.user if args.user else input("login as: ")
+    logging.debug("got username")
     password = getpass("password: ")
+    logging.debug("got password")
     try:
         asyncio.run(main())
     except Exception as e:

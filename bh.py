@@ -11,29 +11,17 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
-import collections
+from constants import *
 
-VCC_MAGIC = 0x01328e22
+def do_ls_bh(uid: int, msg_raw: bytes) -> None:
+    """List the users"""
+    print()
+    for i in range(uid):
+        print(msg_raw[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
 
-VCC_PORT = 46
-VCC_DEFAULT_IP = "124.223.105.230"
-
-
-class REQ:
-    MSG_SEND = 1
-    MSG_NEW = 2
-    CTL_USRS = 3
-    CTL_LOGIN = 4
-    CTL_NEWSE = 5
-    CTL_SESS = 6
-    CTL_JOINS = 7
-    CTL_UINFO = 8
-    SYS_SCRINC = 9
-
-
-REQ_SIZE = 512
-USERNAME_SIZE = 32
-PASSWD_SIZE = 64
-MSG_SIZE = REQ_SIZE - 5 * 4 - USERNAME_SIZE
-
-VCC_REQUEST_FORMAT = f"<iiiii{USERNAME_SIZE}s{MSG_SIZE}s"
+def do_bh(type: int, uid: int, username: str, username_raw: bytes, msg: str, msg_raw: bytes) -> None:
+    match type:
+        case REQ.CTL_USRS:
+            do_ls_bh(uid, msg_raw)
+        case _:
+            pass

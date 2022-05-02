@@ -20,13 +20,15 @@ import logging
 import constants
 
 class AsyncConnection:
+    """A wrapper of socket which can recv or send messages and it's most method is asynchronous"""
     # The init method actually is init
-    def __init__(self, ip=constants.VCC_DEFAULT_IP, port=constants.VCC_PORT, usrname: str=""):
+    def __init__(self, ip: str=constants.VCC_DEFAULT_IP, port: int=constants.VCC_PORT, usrname: str="") -> None:
+        """It will only save informations, you must """
         self.ip = ip
         self.port = port
         self.usrname = usrname
     
-    async def init(self):
+    async def init(self) -> "AsyncConnection":
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setblocking(False)
         self._sock.bind(("0.0.0.0", 0))
@@ -38,13 +40,13 @@ class AsyncConnection:
     async def send(
         self, *, 
         magic: int = constants.VCC_MAGIC, 
-        type: int = constants.REQ_MSG_SEND, 
+        type: int = constants.REQ.MSG_SEND, 
         uid: int = 0, 
         session: int = 0, 
         flags: int = 0, 
         usrname: str = "", 
         msg: str = ""
-    ):
+    ) -> None:
         loop = asyncio.get_event_loop()
         await loop.sock_sendall(self._sock, struct.pack(
             constants.VCC_REQUEST_FORMAT,
@@ -57,7 +59,7 @@ class AsyncConnection:
             (msg + "\0").encode()
         ))
 
-    async def recv(self):
+    async def recv(self) -> tuple[int, int, int, int, str, bytes, str, bytes]:
         loop = asyncio.get_event_loop()
         tuple_data = struct.unpack(constants.VCC_REQUEST_FORMAT, await loop.sock_recv(self._sock, constants.REQ_SIZE))
         magic: int
@@ -70,4 +72,4 @@ class AsyncConnection:
         magic, type, uid, session, flags, usrname, msg = tuple_data
         if socket.ntohl(magic) != constants.VCC_MAGIC:
             raise Exception("Incorrect magin number")
-        return socket.ntohl(type), socket.ntohl(uid), socket.ntohl(session), flags, usrname.decode(), msg.decode()
+        return socket.ntohl(type), socket.ntohl(uid), socket.ntohl(session), flags, usrname.decode().split("\x00")[0], usrname, msg.decode().split("\x00", 1)[0], msg
