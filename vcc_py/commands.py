@@ -14,10 +14,10 @@
 from typing import Callable, Coroutine, NoReturn, Any, Mapping
 import sys
 
-import pretty
+from . import pretty
 
-from sock import AsyncConnection as Connection
-from constants import *
+from .sock import AsyncConnection as Connection
+from .constants import *
 
 async def do_cmd_currs(conn: Connection) -> None:
     """Get current session id"""

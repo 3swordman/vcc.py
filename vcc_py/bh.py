@@ -11,7 +11,7 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
-from constants import *
+from .constants import *
 
 def do_lsse_bh(uid: int, msg_raw: bytes) -> None:
     """List the sessions"""

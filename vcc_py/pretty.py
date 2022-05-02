@@ -14,8 +14,6 @@
 
 from datetime import datetime
 
-import collections
-
 # Colors
 BLACK = 0
 RED = 1

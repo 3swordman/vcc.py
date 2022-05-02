@@ -15,7 +15,7 @@ import asyncio
 import struct
 import socket
 
-import constants
+from . import constants
 
 def bad_str(string: str) -> str:
     return repr(string)[1:-1]

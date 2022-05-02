@@ -3,3 +3,6 @@
 .mypy_cache
 .dmypy.json
 __pycache__
+build
+dist
+vcc_py.egg_info

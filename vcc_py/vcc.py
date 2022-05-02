@@ -19,11 +19,11 @@ import argparse
 import logging
 from typing import NoReturn
 
-from sock import AsyncConnection
-from constants import *
-from commands import do_cmd, is_banned
-from bh import do_bh
-import pretty
+from .sock import AsyncConnection
+from .constants import *
+from .commands import do_cmd, is_banned
+from .bh import do_bh
+from . import pretty
 
 async def ainput(prompt: str) -> str:
     loop = asyncio.get_event_loop()
@@ -71,8 +71,20 @@ async def input_send_loop(conn: AsyncConnection) -> NoReturn:
         pretty.show_msg(curr_usrname, msg, conn.sess)
 
 connection: AsyncConnection
-
+curr_usrname: str
+args: argparse.Namespace
 async def main() -> None:
+    global args
+    global curr_usrname
+    logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
+    args = parse_args()
+    if not (sys.stdout.isatty() and sys.stderr.isatty() and sys.stdin.isatty()):
+        logging.error("stdout, stderr or stdin is redirected. ")
+        sys.exit(1)
+    curr_usrname = args.user if args.user else input("login as: ")
+    logging.debug("got username")
+    password = getpass("password: ")
+    logging.debug("got password")
     global connection
     connection = await AsyncConnection(args.ip, args.port, curr_usrname).init()
     logging.debug("init the socket successful")
@@ -95,16 +107,8 @@ async def main() -> None:
         asyncio.create_task(input_send_loop(connection))
     )
     
-    
+def amain() -> None:
+    asyncio.run(main())
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
-    args = parse_args()
-    if not (sys.stdout.isatty() and sys.stderr.isatty() and sys.stdin.isatty()):
-        logging.error("stdout, stderr or stdin is redirected. ")
-        sys.exit(1)
-    curr_usrname: str = args.user if args.user else input("login as: ")
-    logging.debug("got username")
-    password = getpass("password: ")
-    logging.debug("got password")
-    asyncio.run(main())
+    amain()

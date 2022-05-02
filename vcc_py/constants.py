@@ -11,8 +11,6 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
-import collections
-
 VCC_MAGIC = 0x01328e22
 
 VCC_PORT = 46
