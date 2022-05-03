@@ -69,22 +69,36 @@ async def do_cmd_ls(conn: Connection) -> None:
     await conn.send(type=REQ.CTL_USRS, uid=0)
     await conn.wait_until_recv()
 
+async def do_cmd_uinfo(conn: Connection) -> None:
+    """Get user information"""
+    await conn.send(type=REQ.CTL_UINFO, uid=0, msg=input("Username: "))
+    await conn.wait_until_recv()
+
+async def do_cmd_lself(conn: Connection) -> None:
+    """Reload information of myself"""
+    await conn.send(type=REQ.CTL_UINFO, uid=0, msg=conn.usrname)
+    await conn.wait_until_recv()
+
 def is_banned(user: str) -> bool:
     """Get if someone is banned"""
     return user in ban_list
 
 do_cmd_map: Mapping[str, Callable[[Connection], Coroutine[Any, Any, None | NoReturn]]] = {
     "-help": do_cmd_help,
-    "-cqd": do_cmd_cqd,
     "-quit": do_cmd_quit,
-    "-exit": do_cmd_quit,
-    "-ban": do_cmd_ban,
-    "-unban": do_cmd_unban,
     "-ls": do_cmd_ls,
-    "-lsse": do_cmd_lsse,
     "-newse": do_cmd_newse,
     "-currs": do_cmd_currs,
-    "-swtch": do_cmd_swtch
+    "-swtch": do_cmd_swtch,
+    "-lsse": do_cmd_lsse,
+    "-uinfo": do_cmd_uinfo,
+    "-lself": do_cmd_lself,
+    # -incr: Increase one's score (root required)
+    "-cqd": do_cmd_cqd,
+    "-ban": do_cmd_ban,
+    "-unban": do_cmd_unban
+    # Encrypt
+    # Plugin apis (won't be implemented)
 }
 
 async def do_cmd(string: str, conn: Connection) -> None:

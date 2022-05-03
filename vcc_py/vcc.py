@@ -52,7 +52,7 @@ async def recv_loop(conn: AsyncConnection) -> NoReturn:
             else:
                 pretty.show_msg(usrname, msg, session, newlinefirst=True)
         else:
-            do_bh(type, uid, usrname, usrname_raw, msg, msg_raw)
+            do_bh(type, uid, usrname, usrname_raw, msg, msg_raw, conn.usrname)
 
 async def input_send_loop(conn: AsyncConnection) -> NoReturn:
     while True:

@@ -23,6 +23,12 @@ def bad_str(string: str) -> str:
 def bad_bytes(string: bytes) -> str:
     return repr(string)[2:-1]
 
+def bad_ntohl(value: int) -> int:
+    try:
+        return socket.ntohl(value)
+    except OverflowError:
+        return -1
+
 class AsyncConnection:
     """A wrapper of socket which can recv or send messages and it's most method is asynchronous"""
     def __init__(self, ip: str=constants.VCC_DEFAULT_IP, port: int=constants.VCC_PORT, usrname: str="", sess: int=0) -> None:
@@ -86,7 +92,7 @@ class AsyncConnection:
             decode_msg = bad_bytes(msg.split(b"\x00")[0])
         if socket.ntohl(magic) != constants.VCC_MAGIC:
             raise Exception("Incorrect magin number")
-        return socket.ntohl(type), socket.ntohl(uid), socket.ntohl(session), flags, decode_username, usrname, decode_msg, msg
+        return bad_ntohl(type), bad_ntohl(uid), bad_ntohl(session), flags, decode_username, usrname, decode_msg, msg
     
     async def wait_until_recv(self) -> None:
         self._waiting_for_recv = True

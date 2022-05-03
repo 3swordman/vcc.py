@@ -11,6 +11,9 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
+import struct
+import socket
+
 from .constants import *
 
 def do_lsse_bh(uid: int, msg_raw: bytes) -> None:
@@ -18,16 +21,40 @@ def do_lsse_bh(uid: int, msg_raw: bytes) -> None:
     for i in range(uid):
         print(msg_raw[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
 
+USER_FORMAT = f"<ii{USERNAME_SIZE}s{PASSWD_SIZE}s{MSG_SIZE - USERNAME_SIZE - PASSWD_SIZE - 2 * 4}x"
+
+def do_uinfo_bh(uid: int, msg_raw: bytes, current_user: str) -> None:
+    """Show user info"""
+    if uid == -1:
+        print("User not found")
+        return
+    score: int
+    level: int
+    username: bytes
+    password: bytes
+    score, level, username, password = struct.unpack(USER_FORMAT, msg_raw)
+    if score < 0 or level < 0:
+        print("User not found")
+        return
+    if current_user == username.decode().split(chr(0))[0]:
+        print(f"level of yourself: {socket.ntohl(level)}")
+    else:
+        print(f"{username.decode().split(chr(0))[0]}'s info: ")
+        print("\tscore\tlevel")
+        print(f"\t{socket.ntohl(score):<5}\t{socket.ntohl(level):<5}")
+
 def do_ls_bh(uid: int, msg_raw: bytes) -> None:
     """List the users"""
     for i in range(uid):
         print(msg_raw[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
 
-def do_bh(type: int, uid: int, username: str, username_raw: bytes, msg: str, msg_raw: bytes) -> None:
+def do_bh(type: int, uid: int, username: str, username_raw: bytes, msg: str, msg_raw: bytes, curr_usrname: str) -> None:
     match type:
         case REQ.CTL_USRS:
             do_ls_bh(uid, msg_raw)
         case REQ.CTL_SESS:
             do_lsse_bh(uid, msg_raw)
+        case REQ.CTL_UINFO:
+            do_uinfo_bh(uid, msg_raw, curr_usrname)
         case _:
             raise Exception(f"Unknown response type: {type}, please update and retry")
