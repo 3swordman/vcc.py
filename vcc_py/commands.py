@@ -11,7 +11,7 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
-from typing import Callable, Coroutine, NoReturn, Any, Mapping
+from typing import Callable, Awaitable, NoReturn, Any, Mapping
 import sys
 
 from . import pretty
@@ -54,6 +54,13 @@ async def do_cmd_quit(conn: Connection) -> NoReturn:
     print("bye.")
     sys.exit(0)
 
+async def do_cmd_incr(conn: Connection) -> None:
+    """Increase the number of messages"""
+    username = input("username: ")
+    incr = int(input("increment: "))
+    await conn.send(type=REQ.SYS_SCRINC, usrname=username, session=incr)
+    await conn.wait_until_recv()
+
 ban_list: set[str] = set()
 
 async def do_cmd_ban(conn: Connection) -> None:
@@ -83,7 +90,7 @@ def is_banned(user: str) -> bool:
     """Get if someone is banned"""
     return user in ban_list
 
-do_cmd_map: Mapping[str, Callable[[Connection], Coroutine[Any, Any, None | NoReturn]]] = {
+do_cmd_map: Mapping[str, Callable[[Connection], Awaitable[None | NoReturn]]] = {
     "-help": do_cmd_help,
     "-quit": do_cmd_quit,
     "-ls": do_cmd_ls,
@@ -93,7 +100,7 @@ do_cmd_map: Mapping[str, Callable[[Connection], Coroutine[Any, Any, None | NoRet
     "-lsse": do_cmd_lsse,
     "-uinfo": do_cmd_uinfo,
     "-lself": do_cmd_lself,
-    # -incr: Increase one's score (root required)
+    "-incr": do_cmd_incr,
     "-cqd": do_cmd_cqd,
     "-ban": do_cmd_ban,
     "-unban": do_cmd_unban

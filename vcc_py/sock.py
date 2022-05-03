@@ -12,10 +12,12 @@
 # <https://www.gnu.org/licenses/>. 
 
 import asyncio
+from optparse import Option
 import struct
 import socket
+from typing import Optional
 
-from . import constants
+from .constants import *
 
 def bad_str(string: str) -> str:
     return repr(string)[1:-1]
@@ -31,13 +33,14 @@ def bad_ntohl(value: int) -> int:
 
 class AsyncConnection:
     """A wrapper of socket which can recv or send messages and it's most method is asynchronous"""
-    def __init__(self, ip: str=constants.VCC_DEFAULT_IP, port: int=constants.VCC_PORT, usrname: str="", sess: int=0) -> None:
+    def __init__(self, ip: str=VCC_DEFAULT_IP, port: int=VCC_PORT, usrname: str="", sess: int=0) -> None:
         """It will only save informations, you must call init function"""
         self.ip = ip
         self.port = port
         self.usrname = usrname
         self._waiting_for_recv = False
         self.sess = sess
+        self.level = 0
     
     async def init(self) -> "AsyncConnection":
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -50,17 +53,24 @@ class AsyncConnection:
     
     async def send(
         self, *, 
-        magic: int = constants.VCC_MAGIC, 
-        type: int = constants.REQ.MSG_SEND, 
+        magic: int = VCC_MAGIC, 
+        type: int = REQ.MSG_SEND, 
         uid: int = 0, 
-        session: int = 0, 
+        session: Optional[int] = None, 
         flags: int = 0, 
-        usrname: str = "", 
+        usrname: Optional[str] = None, 
         msg: str = ""
     ) -> None:
         loop = asyncio.get_event_loop()
+
+        if session is None:
+            session = self.sess
+
+        if usrname is None:
+            usrname = self.usrname
+        
         await loop.sock_sendall(self._sock, struct.pack(
-            constants.VCC_REQUEST_FORMAT,
+            VCC_REQUEST_FORMAT,
             socket.htonl(magic), 
             socket.htonl(type),
             socket.htonl(uid),
@@ -72,7 +82,7 @@ class AsyncConnection:
 
     async def recv(self) -> tuple[int, int, int, int, str, bytes, str, bytes]:
         loop = asyncio.get_event_loop()
-        tuple_data = struct.unpack(constants.VCC_REQUEST_FORMAT, await loop.sock_recv(self._sock, constants.REQ_SIZE))
+        tuple_data = struct.unpack(VCC_REQUEST_FORMAT, await loop.sock_recv(self._sock, REQ_SIZE))
         self._waiting_for_recv = False
         magic: int
         type: int
@@ -90,7 +100,7 @@ class AsyncConnection:
             decode_msg = msg.decode().split("\x00")[0]
         except UnicodeDecodeError:
             decode_msg = bad_bytes(msg.split(b"\x00")[0])
-        if socket.ntohl(magic) != constants.VCC_MAGIC:
+        if socket.ntohl(magic) != VCC_MAGIC:
             raise Exception("Incorrect magin number")
         return bad_ntohl(type), bad_ntohl(uid), bad_ntohl(session), flags, decode_username, usrname, decode_msg, msg
     

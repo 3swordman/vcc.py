@@ -22,7 +22,7 @@ from typing import NoReturn
 from .sock import AsyncConnection
 from .constants import *
 from .commands import do_cmd, is_banned
-from .bh import do_bh
+from .bh import do_bh, do_uinfo_bh
 from . import pretty
 
 async def ainput(prompt: str) -> str:
@@ -52,11 +52,11 @@ async def recv_loop(conn: AsyncConnection) -> NoReturn:
             else:
                 pretty.show_msg(usrname, msg, session, newlinefirst=True)
         else:
-            do_bh(type, uid, usrname, usrname_raw, msg, msg_raw, conn.usrname)
+            do_bh(type, uid, usrname, usrname_raw, msg, msg_raw, conn.usrname, conn)
 
 async def input_send_loop(conn: AsyncConnection) -> NoReturn:
     while True:
-        pretty.prompt(curr_usrname, conn.sess)
+        pretty.prompt(curr_usrname, conn.sess, conn.level)
         msg = await ainput("")
         if not msg:
             continue
@@ -102,10 +102,12 @@ async def main() -> None:
         raise Exception("login failed: wrong password or user doesn't exists")
     logging.debug("login successfully")
     print("ready.")
-    await asyncio.gather(
+    runloop = asyncio.gather(
         asyncio.create_task(recv_loop(connection)),
         asyncio.create_task(input_send_loop(connection))
     )
+    await connection.send(type=REQ.CTL_UINFO, uid=0, msg=connection.usrname)
+    await runloop
     
 def amain() -> None:
     asyncio.run(main())

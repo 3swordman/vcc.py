@@ -14,6 +14,7 @@
 import struct
 import socket
 
+from .sock import AsyncConnection
 from .constants import *
 
 def do_lsse_bh(uid: int, msg_raw: bytes) -> None:
@@ -23,7 +24,7 @@ def do_lsse_bh(uid: int, msg_raw: bytes) -> None:
 
 USER_FORMAT = f"<ii{USERNAME_SIZE}s{PASSWD_SIZE}s{MSG_SIZE - USERNAME_SIZE - PASSWD_SIZE - 2 * 4}x"
 
-def do_uinfo_bh(uid: int, msg_raw: bytes, current_user: str) -> None:
+def do_uinfo_bh(uid: int, msg_raw: bytes, current_user: str, conn: AsyncConnection) -> None:
     """Show user info"""
     if uid == -1:
         print("User not found")
@@ -36,25 +37,35 @@ def do_uinfo_bh(uid: int, msg_raw: bytes, current_user: str) -> None:
     if score < 0 or level < 0:
         print("User not found")
         return
-    if current_user == username.decode().split(chr(0))[0]:
+    if current_user == username.decode().split("\x00")[0]:
         print(f"level of yourself: {socket.ntohl(level)}")
+        conn.level = socket.ntohl(level)
     else:
         print(f"{username.decode().split(chr(0))[0]}'s info: ")
         print("\tscore\tlevel")
         print(f"\t{socket.ntohl(score):<5}\t{socket.ntohl(level):<5}")
+
+def do_incr_bh(uid: int) -> None:
+    """Increase score"""
+    if uid:
+        print("Your operation is failed")
+    else:
+        print("You've completed it successfully")
 
 def do_ls_bh(uid: int, msg_raw: bytes) -> None:
     """List the users"""
     for i in range(uid):
         print(msg_raw[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
 
-def do_bh(type: int, uid: int, username: str, username_raw: bytes, msg: str, msg_raw: bytes, curr_usrname: str) -> None:
+def do_bh(type: int, uid: int, username: str, username_raw: bytes, msg: str, msg_raw: bytes, curr_usrname: str, conn: AsyncConnection) -> None:
     match type:
         case REQ.CTL_USRS:
             do_ls_bh(uid, msg_raw)
         case REQ.CTL_SESS:
             do_lsse_bh(uid, msg_raw)
         case REQ.CTL_UINFO:
-            do_uinfo_bh(uid, msg_raw, curr_usrname)
+            do_uinfo_bh(uid, msg_raw, curr_usrname, conn)
+        case REQ.SYS_SCRINC:
+            do_incr_bh(uid)
         case _:
             raise Exception(f"Unknown response type: {type}, please update and retry")

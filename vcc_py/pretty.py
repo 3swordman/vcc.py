@@ -49,6 +49,7 @@ msg_theme = Color(fg=YELLOW, bg=BLACK, mode=MODE_HIGHLIGHT)
 time_theme = Color(fg=YELLOW, bg=BLACK, mode=MODE_HIGHLIGHT)
 cqd_theme = Color(fg=BLACK, bg=RED, mode=MODE_BLINK)
 session_theme = Color(fg=RED, bg=BLACK, mode=MODE_HIGHLIGHT)
+level_theme = Color(fg=YELLOW, bg=BLACK, mode=MODE_LINE)
 
 def use_theme(theme: Color, text: str) -> str:
     """change some text to the color"""
@@ -69,6 +70,11 @@ def cqd(username: str) -> None:
     """show the cqd"""
     print(f"\n{use_theme(cqd_theme, 'CQD')} {username} send CQD. ", end="")
 
-def prompt(username: str, sess: int) -> None:
+def level(level: int) -> str:
+    """display the level"""
+    return use_theme(level_theme, f"lvl{level:02}")
+
+def prompt(username: str, sess: int, lvl: int) -> None:
     """display the prompt"""
-    print(f"{session(sess)} {use_theme(usrname_theme, username)}$: ", end="")
+    print(f"{level(lvl)} {session(sess)} {use_theme(usrname_theme, username)}$: ", end="")
+
