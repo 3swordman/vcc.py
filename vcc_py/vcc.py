@@ -25,15 +25,6 @@ from .commands import do_cmd, is_banned
 from .bh import do_bh, do_uinfo_bh
 from . import pretty
 
-async def ainput(prompt: str) -> str:
-    loop = asyncio.get_event_loop()
-    def input_handler() -> str:
-        try:
-            return input(prompt)
-        except KeyboardInterrupt:
-            return ""
-    return await loop.run_in_executor(None, input_handler)
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Talk with others using %(prog)s :)")
     parser.add_argument("-p", "--port", type=int, metavar="port", default=VCC_PORT, help="specified the port the server use (defualt: 46)")

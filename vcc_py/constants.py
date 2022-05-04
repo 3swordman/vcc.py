@@ -11,6 +11,8 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
+import asyncio
+
 VCC_MAGIC = 0x01328e22
 
 VCC_PORT = 46
@@ -28,6 +30,15 @@ class REQ:
     CTL_UINFO = 8
     SYS_SCRINC = 9
 
+
+async def ainput(prompt: str) -> str:
+    loop = asyncio.get_event_loop()
+    def input_handler() -> str:
+        try:
+            return input(prompt)
+        except KeyboardInterrupt:
+            return ""
+    return await loop.run_in_executor(None, input_handler)
 
 REQ_SIZE = 512
 USERNAME_SIZE = 32

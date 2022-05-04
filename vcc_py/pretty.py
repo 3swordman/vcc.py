@@ -50,6 +50,8 @@ time_theme = Color(fg=YELLOW, bg=BLACK, mode=MODE_HIGHLIGHT)
 cqd_theme = Color(fg=BLACK, bg=RED, mode=MODE_BLINK)
 session_theme = Color(fg=RED, bg=BLACK, mode=MODE_HIGHLIGHT)
 level_theme = Color(fg=YELLOW, bg=BLACK, mode=MODE_LINE)
+help_cmd_theme = Color(fg=LIGHTBLUE, bg=BLACK, mode=MODE_HIGHLIGHT)
+help_text_theme = Color(fg=WHITE, bg=BLACK, mode=MODE_DEFAULT)
 
 def use_theme(theme: Color, text: str) -> str:
     """change some text to the color"""
@@ -73,6 +75,11 @@ def cqd(username: str) -> None:
 def level(level: int) -> str:
     """display the level"""
     return use_theme(level_theme, f"lvl{level:02}")
+
+def help_line(cmd: str, description: str) -> None:
+    """display the help line"""
+    cmd = f"{cmd + ': ':<8}"
+    print(f"{use_theme(help_cmd_theme, cmd)}{use_theme(help_text_theme, description)}")
 
 def prompt(username: str, sess: int, lvl: int) -> None:
     """display the prompt"""
