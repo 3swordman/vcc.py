@@ -12,6 +12,7 @@
 # <https://www.gnu.org/licenses/>. 
 
 import asyncio
+from typing import NamedTuple
 
 VCC_MAGIC = 0x01328e22
 
@@ -30,6 +31,23 @@ class REQ:
     CTL_UINFO = 8
     SYS_SCRINC = 9
 
+class RawRequest(NamedTuple):
+    magic: int
+    type: int
+    uid: int
+    session: int
+    flags: int
+    usrname: bytes
+    msg: bytes
+
+class Request(NamedTuple):
+    magic: int
+    type: int
+    uid: int
+    session: int
+    flags: int
+    usrname: str
+    msg: str
 
 async def ainput(prompt: str) -> str:
     loop = asyncio.get_event_loop()
@@ -37,6 +55,9 @@ async def ainput(prompt: str) -> str:
         try:
             return input(prompt)
         except KeyboardInterrupt:
+            return ""
+        except EOFError:
+            print("\r")
             return ""
     return await loop.run_in_executor(None, input_handler)
 

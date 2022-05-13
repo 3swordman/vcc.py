@@ -10,20 +10,17 @@
 
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
+from __future__ import annotations
 
 import asyncio
-from optparse import Option
 import struct
 import socket
-from typing import Optional
+from typing import Optional, Tuple
 
 from .constants import *
 
-def bad_str(string: str) -> str:
-    return repr(string)[1:-1]
-
 def bad_bytes(string: bytes) -> str:
-    return repr(string)[2:-1]
+    return string.decode(errors="ignore")
 
 def bad_ntohl(value: int) -> int:
     try:
@@ -42,7 +39,7 @@ class AsyncConnection:
         self.sess = sess
         self.level = 0
     
-    async def init(self) -> "AsyncConnection":
+    async def init(self) -> AsyncConnection:
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setblocking(False)
         self._sock.bind(("0.0.0.0", 0))
@@ -80,29 +77,23 @@ class AsyncConnection:
             (msg + "\0").encode()
         ))
 
-    async def recv(self) -> tuple[int, int, int, int, str, bytes, str, bytes]:
+    async def recv(self) -> Tuple[RawRequest, Request]:
         loop = asyncio.get_event_loop()
         tuple_data = struct.unpack(VCC_REQUEST_FORMAT, await loop.sock_recv(self._sock, REQ_SIZE))
         self._waiting_for_recv = False
-        magic: int
-        type: int
-        uid: int
-        session: int
-        flags: int
-        usrname: bytes
-        msg: bytes
-        magic, type, uid, session, flags, usrname, msg = tuple_data
+        raw_request = RawRequest(*tuple_data)
         try:
-            decode_username = usrname.decode().split("\x00")[0]
+            decode_username = raw_request.usrname.decode().split("\x00")[0]
         except UnicodeDecodeError:
-            decode_username = bad_bytes(usrname.split(b"\x00")[0])
+            decode_username = bad_bytes(raw_request.usrname.split(b"\x00")[0])
         try:
-            decode_msg = msg.decode().split("\x00")[0]
+            decode_msg = raw_request.msg.decode().split("\x00")[0]
         except UnicodeDecodeError:
-            decode_msg = bad_bytes(msg.split(b"\x00")[0])
-        if socket.ntohl(magic) != VCC_MAGIC:
+            decode_msg = bad_bytes(raw_request.msg.split(b"\x00")[0])
+        if socket.ntohl(raw_request.magic) != VCC_MAGIC:
             raise Exception("Incorrect magin number")
-        return bad_ntohl(type), bad_ntohl(uid), bad_ntohl(session), flags, decode_username, usrname, decode_msg, msg
+        request = Request(raw_request.magic, bad_ntohl(raw_request.type), bad_ntohl(raw_request.uid), bad_ntohl(raw_request.session), raw_request.flags, decode_username, decode_msg)
+        return raw_request, request
     
     async def wait_until_recv(self) -> None:
         self._waiting_for_recv = True

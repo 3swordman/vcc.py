@@ -1,0 +1,4 @@
+{
+    "include": ["vcc_py/**/*"],
+    "strict": ["vcc_py/**/*"]
+}

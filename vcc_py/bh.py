@@ -17,27 +17,26 @@ import socket
 from .sock import AsyncConnection
 from .constants import *
 
-def do_lsse_bh(uid: int, msg_raw: bytes) -> None:
+def do_lsse_bh(req: Request, req_raw: RawRequest) -> None:
     """List the sessions"""
-    for i in range(uid):
-        print(msg_raw[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
+    for i in range(req.uid):
+        print(req_raw.msg[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
 
 USER_FORMAT = f"<ii{USERNAME_SIZE}s{PASSWD_SIZE}s{MSG_SIZE - USERNAME_SIZE - PASSWD_SIZE - 2 * 4}x"
 
-def do_uinfo_bh(uid: int, msg_raw: bytes, current_user: str, conn: AsyncConnection) -> None:
+def do_uinfo_bh(req: Request, req_raw: RawRequest, conn: AsyncConnection) -> None:
     """Show user info"""
-    if uid == -1:
+    if req.uid == -1:
         print("User not found")
         return
     score: int
     level: int
     username: bytes
-    password: bytes
-    score, level, username, password = struct.unpack(USER_FORMAT, msg_raw)
+    score, level, username, _ = struct.unpack(USER_FORMAT, req_raw.msg)
     if score < 0 or level < 0:
         print("User not found")
         return
-    if current_user == username.decode().split("\x00")[0]:
+    if conn.usrname == username.decode().split("\x00")[0]:
         print(f"level of yourself: {socket.ntohl(level)}")
         conn.level = socket.ntohl(level)
     else:
@@ -45,27 +44,27 @@ def do_uinfo_bh(uid: int, msg_raw: bytes, current_user: str, conn: AsyncConnecti
         print("\tscore\tlevel")
         print(f"\t{socket.ntohl(score):<5}\t{socket.ntohl(level):<5}")
 
-def do_incr_bh(uid: int) -> None:
+def do_incr_bh(req: Request) -> None:
     """Increase score"""
-    if uid:
+    if req.uid:
         print("Your operation is failed")
     else:
         print("You've completed it successfully")
 
-def do_ls_bh(uid: int, msg_raw: bytes) -> None:
+def do_ls_bh(req: Request, req_raw: RawRequest) -> None:
     """List the users"""
-    for i in range(uid):
-        print(msg_raw[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
+    for i in range(req.uid):
+        print(req_raw.msg[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
 
-def do_bh(type: int, uid: int, username: str, username_raw: bytes, msg: str, msg_raw: bytes, curr_usrname: str, conn: AsyncConnection) -> None:
-    match type:
+def do_bh(req: Request, req_raw: RawRequest, conn: AsyncConnection) -> None:
+    match req.type:
         case REQ.CTL_USRS:
-            do_ls_bh(uid, msg_raw)
+            do_ls_bh(req, req_raw)
         case REQ.CTL_SESS:
-            do_lsse_bh(uid, msg_raw)
+            do_lsse_bh(req, req_raw)
         case REQ.CTL_UINFO:
-            do_uinfo_bh(uid, msg_raw, curr_usrname, conn)
+            do_uinfo_bh(req, req_raw, conn)
         case REQ.SYS_SCRINC:
-            do_incr_bh(uid)
+            do_incr_bh(req)
         case _:
-            raise Exception(f"Unknown response type: {type}, please update and retry")
+            raise Exception(f"Unknown response type: {req.type}, please update and retry")

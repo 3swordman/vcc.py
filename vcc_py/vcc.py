@@ -22,7 +22,7 @@ from typing import NoReturn
 from .sock import AsyncConnection
 from .constants import *
 from .commands import do_cmd, is_banned
-from .bh import do_bh, do_uinfo_bh
+from .bh import do_bh
 from . import pretty
 
 def parse_args() -> argparse.Namespace:
@@ -34,16 +34,16 @@ def parse_args() -> argparse.Namespace:
 
 async def recv_loop(conn: AsyncConnection) -> NoReturn:
     while True:
-        type, uid, session, flags, usrname, usrname_raw, msg, msg_raw = await conn.recv()
-        if is_banned(usrname):
+        req_raw, req = await conn.recv()
+        if is_banned(req.usrname):
             continue
-        if type == REQ.MSG_NEW:
-            if msg == "CQD":
-                pretty.cqd(usrname)
+        if req.type == REQ.MSG_NEW:
+            if req.msg == "CQD":
+                pretty.cqd(req.usrname)
             else:
-                pretty.show_msg(usrname, msg, session, newlinefirst=True)
+                pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True)
         else:
-            do_bh(type, uid, usrname, usrname_raw, msg, msg_raw, conn.usrname, conn)
+            do_bh(req, req_raw, conn)
 
 async def input_send_loop(conn: AsyncConnection) -> NoReturn:
     while True:
@@ -85,7 +85,7 @@ async def main() -> None:
         msg=password
     )
     logging.debug("send the login request")
-    type, uid, *_ = await connection.recv()
+    _, (_, type, uid, *_) = await connection.recv()
     logging.debug("recv the login response")
     if type != REQ.CTL_LOGIN:
         raise Exception("Invalid response received")
@@ -93,7 +93,7 @@ async def main() -> None:
         raise Exception("login failed: wrong password or user doesn't exists")
     logging.debug("login successfully")
     print("ready.")
-    runloop = asyncio.gather(
+    runloop: asyncio.Future[tuple[None, None]] = asyncio.gather(
         asyncio.create_task(recv_loop(connection)),
         asyncio.create_task(input_send_loop(connection))
     )

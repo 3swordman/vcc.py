@@ -11,10 +11,8 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
-from typing import Callable, Awaitable, NoReturn, Any, Mapping
+from typing import Callable, Awaitable
 import sys
-
-from . import pretty
 
 from .sock import AsyncConnection as Connection
 from .constants import *
@@ -69,7 +67,7 @@ async def do_cmd_cqd(conn: Connection, args: list[str]) -> None:
     """Send a "cqd", that's an interesting thing"""
     await conn.send(type=REQ.MSG_SEND, usrname=conn.usrname, msg="CQD")
 
-async def do_cmd_quit(conn: Connection, args: list[str]) -> NoReturn:
+async def do_cmd_quit(conn: Connection, args: list[str]) -> None:
     """Disconnect to server and exit vcc"""
     print("bye.")
     sys.exit(0)
@@ -148,7 +146,7 @@ def is_banned(user: str) -> bool:
     """Get if someone is banned"""
     return user in ban_list
 
-do_cmd_map: Mapping[str, Callable[[Connection, list[str]], Awaitable[None | NoReturn]]] = {
+do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-help": do_cmd_help,
     "-quit": do_cmd_quit,
     "-ls": do_cmd_ls,
