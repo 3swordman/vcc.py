@@ -16,7 +16,7 @@ import sys
 
 from .sock import AsyncConnection as Connection
 from .constants import *
-from .pretty import help_line
+from .pretty import help_line, show_msg
 
 async def do_cmd_currs(conn: Connection, args: list[str]) -> None:
     """Get current session id"""
@@ -146,6 +146,19 @@ def is_banned(user: str) -> bool:
     """Get if someone is banned"""
     return user in ban_list
 
+async def do_cmd_rl(conn: Connection, args: list[str]) -> None:
+    """Send a "user-to-visible" message or a message containing -"""
+    if not args:
+        print("This command required at least an argument")
+        return
+    visible = args[0]
+    args.pop(0)
+
+    msg = " ".join(args)
+    
+    await conn.send_relay(msg=msg, visible="" if visible == "-" else visible)
+    show_msg(conn.usrname, msg, conn.sess)
+
 do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-help": do_cmd_help,
     "-quit": do_cmd_quit,
@@ -161,7 +174,8 @@ do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-ban": do_cmd_ban,
     "-unban": do_cmd_unban,
     "-ml": do_cmd_ml,
-    "-send": do_cmd_send
+    "-send": do_cmd_send,
+    "-rl": do_cmd_rl
     # Encrypt
     # Plugin apis (won't be implemented, or it might be implemented in a different way)
 }

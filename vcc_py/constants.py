@@ -15,6 +15,7 @@ import asyncio
 from typing import NamedTuple
 
 VCC_MAGIC = 0x01328e22
+VCC_MAGIC_RL = 0x01328e22
 
 VCC_PORT = 46
 VCC_DEFAULT_IP = "124.223.105.230"
@@ -30,6 +31,8 @@ class REQ:
     CTL_JOINS = 7
     CTL_UINFO = 8
     SYS_SCRINC = 9
+    REL_MSG = 10
+    REL_NEW = 11
 
 class RawRequest(NamedTuple):
     magic: int
@@ -67,3 +70,4 @@ PASSWD_SIZE = 64
 MSG_SIZE = REQ_SIZE - 5 * 4 - USERNAME_SIZE
 
 VCC_REQUEST_FORMAT = f"<iiiii{USERNAME_SIZE}s{MSG_SIZE}s"
+VCC_RELAY_HEADER_FORMAT = f"<iiiii{USERNAME_SIZE}s{USERNAME_SIZE}s"

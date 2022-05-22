@@ -77,6 +77,24 @@ class AsyncConnection:
             (msg + "\0").encode()
         ))
 
+    async def send_relay(self, *, magic: int = VCC_MAGIC_RL, uid: int = 0, session: Optional[int] = None, usrname: Optional[str] = None, msg: str, visible: str) -> None:
+        loop = asyncio.get_event_loop()
+        session = self.sess if session is None else session
+        usrname = self.usrname if usrname is None else usrname
+
+        await loop.sock_sendall(self._sock, struct.pack(
+            VCC_RELAY_HEADER_FORMAT, 
+            socket.htonl(magic), 
+            socket.htonl(REQ.REL_MSG), 
+            socket.htonl(uid),
+            socket.htonl(session), 
+            socket.htonl(struct.calcsize(VCC_RELAY_HEADER_FORMAT) + len(msg) + 1),
+            usrname.encode() + b"\0",
+            visible.encode() + b"\0" if visible else b""
+        ))
+
+        await loop.sock_sendall(self._sock, msg.encode() + b"\0")
+
     async def recv(self) -> Tuple[RawRequest, Request]:
         loop = asyncio.get_event_loop()
         tuple_data = struct.unpack(VCC_REQUEST_FORMAT, await loop.sock_recv(self._sock, REQ_SIZE))
