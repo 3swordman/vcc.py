@@ -16,7 +16,6 @@ import asyncio
 import logging
 import struct
 import socket
-from typing import Optional, Tuple
 
 from .constants import *
 
@@ -54,9 +53,9 @@ class AsyncConnection:
         magic: int = VCC_MAGIC, 
         type: int = REQ.MSG_SEND, 
         uid: int = 0, 
-        session: Optional[int] = None, 
+        session: int | None = None, 
         flags: int = 0, 
-        usrname: Optional[str] = None, 
+        usrname: str | None = None, 
         msg: str = ""
     ) -> None:
         loop = asyncio.get_event_loop()
@@ -78,7 +77,7 @@ class AsyncConnection:
             (msg + "\0").encode()
         ))
 
-    async def send_relay(self, *, magic: int = VCC_MAGIC_RL, uid: int = 0, session: Optional[int] = None, usrname: Optional[str] = None, msg: str, visible: str) -> None:
+    async def send_relay(self, *, magic: int = VCC_MAGIC_RL, uid: int = 0, session: int | None = None, usrname: str | None = None, msg: str, visible: str) -> None:
         loop = asyncio.get_event_loop()
         session = self.sess if session is None else session
         usrname = self.usrname if usrname is None else usrname
@@ -98,22 +97,38 @@ class AsyncConnection:
 
         await loop.sock_sendall(self._sock, msg.encode() + b"\0")
 
-    async def recv(self) -> Tuple[RawRequest, Request]:
+    async def recv(self) -> tuple[RawRequest, Request] | tuple[RawRelay, Relay]:
         loop = asyncio.get_event_loop()
-        tuple_data = struct.unpack(VCC_REQUEST_FORMAT, await loop.sock_recv(self._sock, REQ_SIZE))
+
+        raw_recv_data = await loop.sock_recv(self._sock, struct.calcsize(VCC_RELAY_HEADER_FORMAT))
+        relay_header_data = RawRelayHeader(*struct.unpack(VCC_RELAY_HEADER_FORMAT, raw_recv_data))
+
+        if socket.ntohl(relay_header_data.magic) != VCC_MAGIC:
+            # handle a relay response
+            logging.debug(f"raw relay header content: {repr(relay_header_data)}")
+            size = socket.ntohl(relay_header_data.size) - struct.calcsize(VCC_RELAY_HEADER_FORMAT)
+            raw_recv_data += await loop.sock_recv(self._sock, size)
+            raw_relay_data = RawRelay(*struct.unpack(VCC_RELAY_HEADER_FORMAT + f"{size}s", raw_recv_data))
+            magic = bad_ntohl(raw_relay_data.magic)
+            type = bad_ntohl(raw_relay_data.type)
+            uid = bad_ntohl(raw_relay_data.uid)
+            session = bad_ntohl(raw_relay_data.session)
+            usrname = raw_relay_data.usrname.decode(errors="ignore").split("\x00")[0]
+            visible = raw_relay_data.visible.decode(errors="ignore").split("\x00")[0]
+            msg = raw_relay_data.msg.decode(errors="ignore").split("\x00")[0]
+            relay_tuple_data = Relay(magic, type, size, uid, session, usrname, visible, msg)
+            logging.debug(f"raw relay content: {repr(raw_relay_data)}")
+            logging.debug(f"relay content: {repr(relay_tuple_data)}")
+            return raw_relay_data, relay_tuple_data
+        
+        # handle a normal response
+        raw_recv_data += await loop.sock_recv(self._sock, REQ_SIZE - struct.calcsize(VCC_RELAY_HEADER_FORMAT))
+        tuple_data = struct.unpack(VCC_REQUEST_FORMAT, raw_recv_data)
         self._waiting_for_recv = False
         raw_request = RawRequest(*tuple_data)
-        try:
-            decode_username = raw_request.usrname.decode().split("\x00")[0]
-        except UnicodeDecodeError:
-            decode_username = bad_bytes(raw_request.usrname.split(b"\x00")[0])
-        try:
-            decode_msg = raw_request.msg.decode().split("\x00")[0]
-        except UnicodeDecodeError:
-            decode_msg = bad_bytes(raw_request.msg.split(b"\x00")[0])
-        if socket.ntohl(raw_request.magic) != VCC_MAGIC:
-            raise Exception("Incorrect magin number")
-        request = Request(raw_request.magic, bad_ntohl(raw_request.type), bad_ntohl(raw_request.uid), bad_ntohl(raw_request.session), raw_request.flags, decode_username, decode_msg)
+        decode_username = raw_request.usrname.decode(errors="ignore").split("\x00")[0]
+        decode_msg = raw_request.msg.decode(errors="ignore").split("\x00")[0]
+        request = Request(bad_ntohl(raw_request.magic), bad_ntohl(raw_request.type), bad_ntohl(raw_request.uid), bad_ntohl(raw_request.session), raw_request.flags, decode_username, decode_msg)
         logging.debug(f"raw request content: {repr(raw_request)}")
         logging.debug(f"request content: {repr(request)}")
         return raw_request, request

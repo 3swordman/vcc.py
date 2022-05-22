@@ -14,6 +14,8 @@
 
 from datetime import datetime
 
+from .constants import MSG_NEW_RELAY, MSG_NEW_ONLY_VISIBLE
+
 # Colors
 BLACK = 0
 RED = 1
@@ -52,15 +54,21 @@ session_theme = Color(fg=RED, bg=BLACK, mode=MODE_HIGHLIGHT)
 level_theme = Color(fg=YELLOW, bg=BLACK, mode=MODE_LINE)
 help_cmd_theme = Color(fg=LIGHTBLUE, bg=BLACK, mode=MODE_HIGHLIGHT)
 help_text_theme = Color(fg=WHITE, bg=BLACK, mode=MODE_DEFAULT)
+relay_theme = Color(fg=BLUE, bg=BLACK, mode=MODE_HIGHLIGHT)
 
 def use_theme(theme: Color, text: str) -> str:
     """change some text to the color"""
     return f"\033[{theme.mode};{theme.fg};{theme.bg}m{text}\033[0m"
 
-def show_msg(username: str, message: str, sess: int, newlinefirst: bool=False) -> None:
+def show_msg(username: str, message: str, sess: int, newlinefirst: bool=False, flag: int=0) -> None:
     """display someone's message"""
     time = datetime.now()
-    str = f"[{use_theme(time_theme, f'{time.hour:02}:{time.minute:02}')}] {session(sess)} {use_theme(usrname_theme, username)}@: {use_theme(msg_theme, message)}"
+    if flag & MSG_NEW_RELAY:
+        relay_text = use_theme(relay_theme, "[relay] " + ("[to-you-only] " if flag & MSG_NEW_ONLY_VISIBLE else "[broadcast] "))
+    else:
+        relay_text = ""
+    
+    str = f"[{use_theme(time_theme, f'{time.hour:02}:{time.minute:02}')}] {session(sess)} {relay_text}{use_theme(usrname_theme, username)}@: {use_theme(msg_theme, message)}"
     str = "\r" + str if newlinefirst else str + "\n"
     print(str, end="")
 

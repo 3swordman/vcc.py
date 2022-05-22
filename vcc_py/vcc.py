@@ -35,6 +35,12 @@ def parse_args() -> argparse.Namespace:
 async def recv_loop(conn: AsyncConnection) -> NoReturn:
     while True:
         req_raw, req = await conn.recv()
+        if isinstance(req_raw, RawRelay) or isinstance(req, Relay):
+            flag = MSG_NEW_RELAY
+            if req.uid:
+                flag |= MSG_NEW_ONLY_VISIBLE
+            pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True, flag=flag)
+            continue
         if is_banned(req.usrname):
             continue
         if req.type == REQ.MSG_NEW:

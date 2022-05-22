@@ -52,6 +52,36 @@ class Request(NamedTuple):
     usrname: str
     msg: str
 
+class RawRelayHeader(NamedTuple):
+    magic: int
+    type: int
+    size: int
+    uid: int
+    session: int
+    usrname: bytes
+    visible: bytes
+
+class RawRelay(NamedTuple):
+    magic: int
+    type: int
+    size: int
+    uid: int
+    session: int
+    usrname: bytes
+    visible: bytes
+    msg: bytes
+
+class Relay(NamedTuple):
+    magic: int
+    type: int
+    size: int
+    uid: int
+    session: int
+    usrname: str
+    visible: str
+    msg: str
+    
+
 async def ainput(prompt: str) -> str:
     loop = asyncio.get_event_loop()
     def input_handler() -> str:
@@ -71,3 +101,6 @@ MSG_SIZE = REQ_SIZE - 5 * 4 - USERNAME_SIZE
 
 VCC_REQUEST_FORMAT = f"<iiiii{USERNAME_SIZE}s{MSG_SIZE}s"
 VCC_RELAY_HEADER_FORMAT = f"<iiiii{USERNAME_SIZE}s{USERNAME_SIZE}s"
+
+MSG_NEW_RELAY = 0b1
+MSG_NEW_ONLY_VISIBLE = 0b10
