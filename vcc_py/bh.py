@@ -13,12 +13,14 @@
 
 import struct
 import socket
+import logging
 
 from .sock import AsyncConnection
 from .constants import *
 
 def do_lsse_bh(req: Request, req_raw: RawRequest) -> None:
     """List the sessions"""
+    logging.debug(f"Lsse bh: score: {req.uid}")
     for i in range(req.uid):
         print(req_raw.msg[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
 
@@ -26,6 +28,7 @@ USER_FORMAT = f"<ii{USERNAME_SIZE}s{PASSWD_SIZE}s{MSG_SIZE - USERNAME_SIZE - PAS
 
 def do_uinfo_bh(req: Request, req_raw: RawRequest, conn: AsyncConnection) -> None:
     """Show user info"""
+    logging.debug(f"Uinfo bh: uid: {req.uid}")
     if req.uid == -1:
         print("User not found")
         return
@@ -33,6 +36,8 @@ def do_uinfo_bh(req: Request, req_raw: RawRequest, conn: AsyncConnection) -> Non
     level: int
     username: bytes
     score, level, username, _ = struct.unpack(USER_FORMAT, req_raw.msg)
+    logging.debug(f"Uinfo bh: score (not ntohl): {score}")
+    logging.debug(f"Uinfo bh: level (not ntohl): {level}")
     if score < 0 or level < 0:
         print("User not found")
         return
@@ -46,6 +51,7 @@ def do_uinfo_bh(req: Request, req_raw: RawRequest, conn: AsyncConnection) -> Non
 
 def do_incr_bh(req: Request) -> None:
     """Increase score"""
+
     if req.uid:
         print("Your operation is failed")
     else:
@@ -53,10 +59,12 @@ def do_incr_bh(req: Request) -> None:
 
 def do_ls_bh(req: Request, req_raw: RawRequest) -> None:
     """List the users"""
+    logging.debug(f"Number of the response of '-ls': {req.type}")
     for i in range(req.uid):
         print(req_raw.msg[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
 
 def do_bh(req: Request, req_raw: RawRequest, conn: AsyncConnection) -> None:
+    logging.debug(f"Message type: {req.type}")
     match req.type:
         case REQ.CTL_USRS:
             do_ls_bh(req, req_raw)

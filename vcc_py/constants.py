@@ -15,7 +15,7 @@ import asyncio
 from typing import NamedTuple
 
 VCC_MAGIC = 0x01328e22
-VCC_MAGIC_RL = 0x01328e22
+VCC_MAGIC_RL = 0x01328e36
 
 VCC_PORT = 46
 VCC_DEFAULT_IP = "124.223.105.230"

@@ -67,7 +67,7 @@ args: argparse.Namespace
 async def main() -> None:
     global args
     global curr_usrname
-    logging.basicConfig(level=logging.ERROR, format="%(levelname)s: %(message)s")
+    logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
     args = parse_args()
     if not (sys.stdout.isatty() and sys.stderr.isatty() and sys.stdin.isatty()):
         logging.error("stdout, stderr or stdin is redirected. ")

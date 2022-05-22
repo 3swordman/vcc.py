@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import struct
 import socket
 from typing import Optional, Tuple
@@ -65,7 +66,7 @@ class AsyncConnection:
 
         if usrname is None:
             usrname = self.usrname
-        
+        logging.debug(f"msgic: {magic}, type: {type}, uid: {uid}, session: {session}, flags: {flags}, usrname: {usrname}, msg: {msg}")
         await loop.sock_sendall(self._sock, struct.pack(
             VCC_REQUEST_FORMAT,
             socket.htonl(magic), 
@@ -81,16 +82,18 @@ class AsyncConnection:
         loop = asyncio.get_event_loop()
         session = self.sess if session is None else session
         usrname = self.usrname if usrname is None else usrname
-
+        length = struct.calcsize(VCC_RELAY_HEADER_FORMAT) + len(msg.encode()) + 1
+    
+        logging.debug(f"msgic: {magic}, uid: {uid}, session: {session}, length: {length}, usrname: {usrname}, msg: {msg}, visible: {visible}")
         await loop.sock_sendall(self._sock, struct.pack(
             VCC_RELAY_HEADER_FORMAT, 
             socket.htonl(magic), 
             socket.htonl(REQ.REL_MSG), 
+            socket.htonl(length),
             socket.htonl(uid),
             socket.htonl(session), 
-            socket.htonl(struct.calcsize(VCC_RELAY_HEADER_FORMAT) + len(msg) + 1),
             usrname.encode() + b"\0",
-            visible.encode() + b"\0" if visible else b""
+            visible.encode() + b"\0"
         ))
 
         await loop.sock_sendall(self._sock, msg.encode() + b"\0")
@@ -111,6 +114,8 @@ class AsyncConnection:
         if socket.ntohl(raw_request.magic) != VCC_MAGIC:
             raise Exception("Incorrect magin number")
         request = Request(raw_request.magic, bad_ntohl(raw_request.type), bad_ntohl(raw_request.uid), bad_ntohl(raw_request.session), raw_request.flags, decode_username, decode_msg)
+        logging.debug(f"raw request content: {repr(raw_request)}")
+        logging.debug(f"request content: {repr(request)}")
         return raw_request, request
     
     async def wait_until_recv(self) -> None:
