@@ -17,6 +17,7 @@ import sys
 from getpass import getpass
 import argparse
 import logging
+import os.path
 from typing import NoReturn
 
 from .sock import AsyncConnection
@@ -67,38 +68,82 @@ async def input_send_loop(conn: AsyncConnection) -> NoReturn:
         )
         pretty.show_msg(curr_usrname, msg, conn.sess)
 
+async def intiauth_try_login() -> bool:
+    """Return True if get intiauth login details successfully"""
+    global args
+    global curr_usrname
+    global connection
+
+    if sys.platform.startswith("win32"):
+        return False
+    
+    session_filename = "/var/run/intiauth-session"
+    user_filename = "/var/run/intiauth-user"
+
+    if not os.path.isfile(session_filename) and not os.path.isfile(user_filename):
+        return False
+
+    with (
+        open(session_filename) as session_file,
+        open(user_filename) as user_file,
+    ):
+        session_text = session_file.read(64)
+        curr_usrname = user_file.read(USERNAME_SIZE)
+    
+    connection = await AsyncConnection(args.ip, args.port, curr_usrname).init()
+    logging.debug("init the socket successfully")
+
+    await connection.send(
+        type=REQ.CTL_IALOG,
+        usrname=curr_usrname,
+        msg=session_text
+    )
+    logging.debug("send the login request")
+
+    _, (_, type, uid, *_) = await connection.recv()
+    logging.debug("recv the login response")
+
+    if type != REQ.CTL_LOGIN:
+        raise Exception("Invalid response received")
+    if not uid:
+        raise Exception("login failed: wrong password or user doesn't exists")
+    logging.debug("login successfully")
+
+    return True
+
 connection: AsyncConnection
 curr_usrname: str
 args: argparse.Namespace
 async def main() -> None:
     global args
     global curr_usrname
-    logging.basicConfig(level=logging.DEBUG, format="%(levelname)s: %(message)s")
+    logging.basicConfig(level=logging.WARN, format="%(levelname)s: %(message)s")
     args = parse_args()
     if not (sys.stdout.isatty() and sys.stderr.isatty() and sys.stdin.isatty()):
         logging.error("stdout, stderr or stdin is redirected. ")
         sys.exit(1)
-    curr_usrname = args.user if args.user else input("login as: ")
-    logging.debug("got username")
-    password = getpass("password: ")
-    logging.debug("got password")
-    global connection
-    connection = await AsyncConnection(args.ip, args.port, curr_usrname).init()
-    logging.debug("init the socket successful")
-    await connection.send(
-        type=REQ.CTL_LOGIN,
-        usrname=curr_usrname,
-        msg=password
-    )
-    logging.debug("send the login request")
-    _, (_, type, uid, *_) = await connection.recv()
-    logging.debug("recv the login response")
-    if type != REQ.CTL_LOGIN:
-        raise Exception("Invalid response received")
-    if not uid:
-        raise Exception("login failed: wrong password or user doesn't exists")
-    logging.debug("login successfully")
-    print("ready.")
+    if not await intiauth_try_login():
+        curr_usrname = args.user if args.user else input("login as: ")
+        logging.debug("got username")
+        password = getpass("password: ")
+        logging.debug("got password")
+        global connection
+        connection = await AsyncConnection(args.ip, args.port, curr_usrname).init()
+        logging.debug("init the socket successfully")
+        await connection.send(
+            type=REQ.CTL_LOGIN,
+            usrname=curr_usrname,
+            msg=password
+        )
+        logging.debug("send the login request")
+        _, (_, type, uid, *_) = await connection.recv()
+        logging.debug("recv the login response")
+        if type != REQ.CTL_LOGIN:
+            raise Exception("Invalid response received")
+        if not uid:
+            raise Exception("login failed: wrong password or user doesn't exists")
+        logging.debug("login successfully")
+        print("ready.")
     runloop: asyncio.Future[tuple[None, None]] = asyncio.gather(
         asyncio.create_task(recv_loop(connection)),
         asyncio.create_task(input_send_loop(connection))

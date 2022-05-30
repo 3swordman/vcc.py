@@ -32,7 +32,9 @@ class REQ:
     CTL_UINFO = 8
     SYS_SCRINC = 9
     REL_MSG = 10
+    # Why make REL_NEW and CTL_IALOG the same? I don't know.
     REL_NEW = 11
+    CTL_IALOG = 11
 
 class RawRequest(NamedTuple):
     magic: int
