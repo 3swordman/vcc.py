@@ -43,13 +43,13 @@ async def recv_loop(conn: Connection) -> NoReturn:
             flag = MSG_NEW_RELAY
             if req.uid:
                 flag |= MSG_NEW_ONLY_VISIBLE
-            if req.type == REQ.MSG_NEW:
+            try:
+                do_bh(req, req_raw, conn)
+            except Exception:
                 if req.msg == "CQD":
                     pretty.cqd(req.usrname)
                 else:
                     pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True, flag=flag)
-            else:
-                do_bh(req, req_raw, conn)
         else:
             if req.type == REQ.MSG_NEW:
                 if req.msg == "CQD":
