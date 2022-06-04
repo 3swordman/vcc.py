@@ -8,3 +8,5 @@ dist
 vcc_py.egg_info
 vcc_py.egg-info
 *.so
+*.dll
+*.dylib

@@ -14,9 +14,9 @@
 from typing import Callable, Awaitable
 import sys
 
-from .sock import AsyncConnection as Connection
+from .sock import Connection
 from .constants import *
-from .pretty import help_line, show_msg
+from .pretty import help_line, prompt, show_msg
 
 async def do_cmd_currs(conn: Connection, args: list[str]) -> None:
     """Get current session id"""
@@ -187,5 +187,6 @@ async def do_cmd(string: str, conn: Connection) -> None:
     args = split_list[1:]
     try:
         await do_cmd_map[command](conn, args)
+        prompt(conn.usrname, conn.sess, conn.level)
     except KeyError:
         print(f"Unknown command \"{command}\"", file=sys.stderr)

@@ -15,7 +15,7 @@ import struct
 import socket
 import logging
 
-from .sock import AsyncConnection
+from .sock import Connection
 from .constants import *
 
 def do_lsse_bh(req: Request, req_raw: RawRequest) -> None:
@@ -26,7 +26,7 @@ def do_lsse_bh(req: Request, req_raw: RawRequest) -> None:
 
 USER_FORMAT = f"<ii{USERNAME_SIZE}s{PASSWD_SIZE}s{MSG_SIZE - USERNAME_SIZE - PASSWD_SIZE - 2 * 4}x"
 
-def do_uinfo_bh(req: Request, req_raw: RawRequest, conn: AsyncConnection) -> None:
+def do_uinfo_bh(req: Request, req_raw: RawRequest, conn: Connection) -> None:
     """Show user info"""
     logging.debug(f"Uinfo bh: uid: {req.uid}")
     if req.uid == -1:
@@ -57,22 +57,30 @@ def do_incr_bh(req: Request) -> None:
     else:
         print("You've completed it successfully")
 
-def do_ls_bh(req: Request, req_raw: RawRequest) -> None:
+def do_ls_bh(req: Relay, req_raw: RawRelay) -> None:
     """List the users"""
-    logging.debug(f"Number of the response of '-ls': {req.type}")
+    logging.debug(f"Number of the response of '-ls': {req.uid}")
     for i in range(req.uid):
         print(req_raw.msg[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
 
-def do_bh(req: Request, req_raw: RawRequest, conn: AsyncConnection) -> None:
+def do_bh(req: Request | Relay, req_raw: RawRequest | RawRelay, conn: Connection) -> None:
     logging.debug(f"Message type: {req.type}")
-    match req.type:
-        case REQ.CTL_USRS:
-            do_ls_bh(req, req_raw)
-        case REQ.CTL_SESS:
-            do_lsse_bh(req, req_raw)
-        case REQ.CTL_UINFO:
-            do_uinfo_bh(req, req_raw, conn)
-        case REQ.SYS_SCRINC:
-            do_incr_bh(req)
-        case _:
-            raise Exception(f"Unknown response type: {req.type}, please update and retry")
+    if not (isinstance(req, Request) and isinstance(req_raw, RawRequest)) and not (isinstance(req, Relay) and isinstance(req_raw, RawRelay)):
+        raise Exception(f"Internal error")
+    if isinstance(req, Request) and isinstance(req_raw, RawRequest):
+        match req.type:
+            case REQ.CTL_SESS:
+                do_lsse_bh(req, req_raw)
+            case REQ.CTL_UINFO:
+                do_uinfo_bh(req, req_raw, conn)
+            case REQ.SYS_SCRINC:
+                do_incr_bh(req)
+            case _:
+                raise Exception(f"Unknown response type: {req.type}, please update and retry")
+    elif isinstance(req, Relay) and isinstance(req_raw, RawRelay):
+        match req.type:
+            case REQ.CTL_USRS:
+                do_ls_bh(req, req_raw)
+            case _:
+                raise Exception(f"Unknown response type: {req.type}, please update and retry")
+

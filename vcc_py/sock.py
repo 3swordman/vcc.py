@@ -12,6 +12,7 @@
 # <https://www.gnu.org/licenses/>. 
 from __future__ import annotations
 
+from types import TracebackType
 import asyncio
 import logging
 import struct
@@ -28,10 +29,9 @@ def bad_ntohl(value: int) -> int:
     except OverflowError:
         return -1
 
-class AsyncConnection:
+class Connection:
     """A wrapper of socket which can recv or send messages and it's most method is asynchronous"""
     def __init__(self, ip: str=VCC_DEFAULT_IP, port: int=VCC_PORT, usrname: str="", sess: int=0) -> None:
-        """It will only save informations, you must call init function"""
         self.ip = ip
         self.port = port
         self.usrname = usrname
@@ -39,13 +39,17 @@ class AsyncConnection:
         self.sess = sess
         self.level = 0
     
-    async def init(self) -> AsyncConnection:
+    async def __aenter__(self) -> Connection:
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setblocking(False)
         self._sock.bind(("0.0.0.0", 0))
         loop = asyncio.get_event_loop()
         await loop.sock_connect(self._sock, (self.ip, self.port))
         return self
+
+    async def __aexit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
+        self._sock.shutdown(socket.SHUT_RDWR)
+        self._sock.close()
 
     
     async def send(
@@ -106,8 +110,10 @@ class AsyncConnection:
         if socket.ntohl(relay_header_data.magic) != VCC_MAGIC:
             # handle a relay response
             logging.debug(f"raw relay header content: {repr(relay_header_data)}")
-            size = socket.ntohl(relay_header_data.size) - struct.calcsize(VCC_RELAY_HEADER_FORMAT)
+            size = bad_ntohl(relay_header_data.size) - struct.calcsize(VCC_RELAY_HEADER_FORMAT)
+            logging.debug(f"{size}")
             raw_recv_data += await loop.sock_recv(self._sock, size)
+            self._waiting_for_recv = False
             raw_relay_data = RawRelay(*struct.unpack(VCC_RELAY_HEADER_FORMAT + f"{size}s", raw_recv_data))
             magic = bad_ntohl(raw_relay_data.magic)
             type = bad_ntohl(raw_relay_data.type)

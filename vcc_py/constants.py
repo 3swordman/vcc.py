@@ -12,6 +12,7 @@
 # <https://www.gnu.org/licenses/>. 
 
 import asyncio
+from enum import IntEnum
 from typing import NamedTuple
 
 VCC_MAGIC = 0x01328e22
@@ -21,7 +22,7 @@ VCC_PORT = 46
 VCC_DEFAULT_IP = "124.223.105.230"
 
 
-class REQ:
+class REQ(IntEnum):
     MSG_SEND = 1
     MSG_NEW = 2
     CTL_USRS = 3
@@ -32,9 +33,8 @@ class REQ:
     CTL_UINFO = 8
     SYS_SCRINC = 9
     REL_MSG = 10
-    # Why make REL_NEW and CTL_IALOG the same? I don't know.
     REL_NEW = 11
-    CTL_IALOG = 11
+    CTL_IALOG = 12
 
 class RawRequest(NamedTuple):
     magic: int
@@ -102,7 +102,7 @@ PASSWD_SIZE = 64
 MSG_SIZE = REQ_SIZE - 5 * 4 - USERNAME_SIZE
 
 VCC_REQUEST_FORMAT = f"<iiiii{USERNAME_SIZE}s{MSG_SIZE}s"
-VCC_RELAY_HEADER_FORMAT = f"<iiiii{USERNAME_SIZE}s{USERNAME_SIZE}s"
+VCC_RELAY_HEADER_FORMAT = f"<iiIii{USERNAME_SIZE}s{USERNAME_SIZE}s"
 
 MSG_NEW_RELAY = 0b1
 MSG_NEW_ONLY_VISIBLE = 0b10

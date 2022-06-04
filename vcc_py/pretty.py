@@ -32,6 +32,8 @@ MODE_HIGHLIGHT = 1
 MODE_LINE = 4
 MODE_BLINK = 5
 
+REMOVE_THIS_LINE = "\033[2K\r"
+
 def to_fg(color: int) -> int:
     return color + 30
 
@@ -91,5 +93,5 @@ def help_line(cmd: str, description: str) -> None:
 
 def prompt(username: str, sess: int, lvl: int) -> None:
     """display the prompt"""
-    print(f"{level(lvl)} {session(sess)} {use_theme(usrname_theme, username)}$: ", end="")
+    print(f"{REMOVE_THIS_LINE}{level(lvl)} {session(sess)} {use_theme(usrname_theme, username)}$: ", end="")
 
