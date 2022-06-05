@@ -70,7 +70,7 @@ async def do_cmd_cqd(conn: Connection, args: list[str]) -> None:
 async def do_cmd_quit(conn: Connection, args: list[str]) -> None:
     """Disconnect to server and exit vcc"""
     print("bye.")
-    sys.exit(0)
+    raise ExitError()
 
 async def do_cmd_incr(conn: Connection, args: list[str]) -> None:
     """Increase the number of messages"""

@@ -83,6 +83,8 @@ class Relay(NamedTuple):
     visible: str
     msg: str
     
+class ExitError(Exception):
+    pass
 
 async def ainput(prompt: str) -> str:
     loop = asyncio.get_event_loop()

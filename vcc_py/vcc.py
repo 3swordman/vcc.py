@@ -18,7 +18,7 @@ from getpass import getpass
 import argparse
 import logging
 import os.path
-from typing import NoReturn
+from typing import Callable, NoReturn
 
 from .sock import Connection
 from .constants import *
@@ -34,39 +34,46 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(dest="ip", metavar="ip", nargs="?", default=VCC_DEFAULT_IP, help="the ip address of the server")
     return parser.parse_args()
 
-async def recv_loop(conn: Connection) -> NoReturn:
-    while True:
-        req_raw, req = await conn.recv()
-        if is_banned(req.usrname):
-            continue
-        if isinstance(req_raw, RawRelay) and isinstance(req, Relay):
-            flag = MSG_NEW_RELAY
-            if req.uid:
-                flag |= MSG_NEW_ONLY_VISIBLE
-            try:
-                do_bh(req, req_raw, conn)
-            except Exception:
-                if req.msg == "CQD":
-                    pretty.cqd(req.usrname)
-                else:
-                    pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True, flag=flag)
-        else:
-            if req.type == REQ.MSG_NEW:
-                if req.msg == "CQD":
-                    pretty.cqd(req.usrname)
-                else:
-                    pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True)
+async def recv_loop(conn: Connection) -> None:
+    try:
+        while True:
+            req_raw, req = await conn.recv()
+            if is_banned(req.usrname):
+                continue
+            if isinstance(req_raw, RawRelay) and isinstance(req, Relay):
+                flag = MSG_NEW_RELAY
+                if req.uid:
+                    flag |= MSG_NEW_ONLY_VISIBLE
+                try:
+                    do_bh(req, req_raw, conn)
+                except Exception:
+                    if req.msg == "CQD":
+                        pretty.cqd(req.usrname)
+                    else:
+                        pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True, flag=flag)
             else:
-                do_bh(req, req_raw, conn)
+                if req.type == REQ.MSG_NEW:
+                    if req.msg == "CQD":
+                        pretty.cqd(req.usrname)
+                    else:
+                        pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True)
+                else:
+                    do_bh(req, req_raw, conn)
+    except asyncio.CancelledError:
+            return
 
-async def input_send_loop(conn: Connection) -> NoReturn:
+async def input_send_loop(conn: Connection, quit_func: Callable[[], bool]) -> None:
     while True:
         pretty.prompt(curr_usrname, conn.sess, conn.level)
         msg = await ainput("")
         if not msg:
             continue
         if msg[0] == "-":
-            await do_cmd(msg, conn)
+            try:
+                await do_cmd(msg, conn)
+            except ExitError:
+                quit_func()
+                return
             continue
         await conn.send(
             type=REQ.MSG_SEND,
@@ -128,9 +135,10 @@ async def main() -> None:
         if not uid:
             raise Exception("login failed: wrong password or user doesn't exists")
         logging.debug("login successfully")
+        recv_loop_task = asyncio.create_task(recv_loop(connection))
         runloop: asyncio.Future[tuple[None, None]] = asyncio.gather(
-            asyncio.create_task(recv_loop(connection)),
-            asyncio.create_task(input_send_loop(connection))
+            recv_loop_task,
+            asyncio.create_task(input_send_loop(connection, lambda: recv_loop_task.cancel()))
         )
         await connection.send(type=REQ.CTL_UINFO, uid=0, msg=connection.usrname)
         await runloop
