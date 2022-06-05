@@ -18,7 +18,9 @@ from getpass import getpass
 import argparse
 import logging
 import os.path
-from typing import Callable, NoReturn
+import signal
+from types import FrameType
+from typing import Callable
 
 from .sock import Connection
 from .constants import *
@@ -65,7 +67,10 @@ async def recv_loop(conn: Connection) -> None:
 async def input_send_loop(conn: Connection, quit_func: Callable[[], bool]) -> None:
     while True:
         pretty.prompt(curr_usrname, conn.sess, conn.level)
-        msg = await ainput("")
+        try:
+            msg = await ainput("")
+        except asyncio.CancelledError:
+            return
         if not msg:
             continue
         if msg[0] == "-":
@@ -136,9 +141,14 @@ async def main() -> None:
             raise Exception("login failed: wrong password or user doesn't exists")
         logging.debug("login successfully")
         recv_loop_task = asyncio.create_task(recv_loop(connection))
+        input_send_loop_task = asyncio.create_task(input_send_loop(connection, lambda: recv_loop_task.cancel()))
+        def sigint_handler(sig: int, frame: FrameType | None) -> None:
+            recv_loop_task.cancel()
+            input_send_loop_task.cancel()
+        signal.signal(signal.SIGINT, sigint_handler)
         runloop: asyncio.Future[tuple[None, None]] = asyncio.gather(
             recv_loop_task,
-            asyncio.create_task(input_send_loop(connection, lambda: recv_loop_task.cancel()))
+            input_send_loop_task
         )
         await connection.send(type=REQ.CTL_UINFO, uid=0, msg=connection.usrname)
         await runloop

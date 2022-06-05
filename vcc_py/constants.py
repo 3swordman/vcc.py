@@ -91,8 +91,6 @@ async def ainput(prompt: str) -> str:
     def input_handler() -> str:
         try:
             return input(prompt)
-        except KeyboardInterrupt:
-            return ""
         except EOFError:
             print("\r")
             return ""
