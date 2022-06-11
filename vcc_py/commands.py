@@ -83,24 +83,6 @@ async def do_cmd_incr(conn: Connection, args: list[str]) -> None:
     await conn.send(type=REQ.SYS_SCRINC, usrname=username, session=incr)
     await conn.wait_until_recv()
 
-ban_list: set[str] = set()
-
-async def do_cmd_ban(conn: Connection, args: list[str]) -> None:
-    """Ban someone so you won't receive messages from him/her"""
-    if args:
-        ban_people = args[0]
-    else:
-        ban_people = input("Enter the people you would like to ban: ")
-    ban_list.add(ban_people)
-
-async def do_cmd_unban(conn: Connection, args: list[str]) -> None:
-    """Unban someone so you will be able to receive more messages from him/her"""
-    if args:
-        unban_people = args[0]
-    else:
-        unban_people = input("Enter the people you would like to inban: ")
-    ban_list.discard(unban_people)
-
 async def do_cmd_ls(conn: Connection, args: list[str]) -> None:
     """List the users"""
     await conn.send(type=REQ.CTL_USRS, uid=0)
@@ -142,10 +124,6 @@ async def do_cmd_send(conn: Connection, args: list[str]) -> None:
         msg=args[0] if args else input("Message: ")
     )
 
-def is_banned(user: str) -> bool:
-    """Get if someone is banned"""
-    return user in ban_list
-
 async def do_cmd_rl(conn: Connection, args: list[str]) -> None:
     """Send a "user-to-visible" message or a message containing -"""
     if not args:
@@ -158,7 +136,7 @@ async def do_cmd_rl(conn: Connection, args: list[str]) -> None:
     
     await conn.send_relay(msg=msg, visible="" if visible == "-" else visible)
     show_msg(conn.usrname, msg, conn.sess)
-
+    
 do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-help": do_cmd_help,
     "-quit": do_cmd_quit,
@@ -171,13 +149,10 @@ do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-lself": do_cmd_lself,
     "-incr": do_cmd_incr,
     "-cqd": do_cmd_cqd,
-    "-ban": do_cmd_ban,
-    "-unban": do_cmd_unban,
     "-ml": do_cmd_ml,
     "-send": do_cmd_send,
     "-rl": do_cmd_rl
     # Encrypt
-    # Plugin apis (won't be implemented, or it might be implemented in a different way)
 }
 
 async def do_cmd(string: str, conn: Connection) -> None:
@@ -190,3 +165,6 @@ async def do_cmd(string: str, conn: Connection) -> None:
         prompt(conn.usrname, conn.sess, conn.level)
     except KeyError:
         print(f"Unknown command \"{command}\"", file=sys.stderr)
+
+def new_commands(commands: dict[str, Callable[[Connection, list[str]], Awaitable[None]]]) -> None:
+    do_cmd_map.update(commands)

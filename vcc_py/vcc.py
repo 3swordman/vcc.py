@@ -24,8 +24,9 @@ from typing import Callable
 
 from .sock import Connection
 from .constants import *
-from .commands import do_cmd, is_banned
+from .commands import do_cmd, new_commands
 from .bh import do_bh
+from .plugin import Plugins
 from . import pretty
 
 def parse_args() -> argparse.Namespace:
@@ -36,12 +37,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(dest="ip", metavar="ip", nargs="?", default=VCC_DEFAULT_IP, help="the ip address of the server")
     return parser.parse_args()
 
-async def recv_loop(conn: Connection) -> None:
+async def recv_loop(conn: Connection, plugs: Plugins) -> None:
     try:
         while True:
             req_raw, req = await conn.recv()
-            if is_banned(req.usrname):
-                continue
             if isinstance(req_raw, RawRelay) and isinstance(req, Relay):
                 flag = MSG_NEW_RELAY
                 if req.uid:
@@ -54,6 +53,11 @@ async def recv_loop(conn: Connection) -> None:
                     else:
                         pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True, flag=flag)
             else:
+                assert isinstance(req_raw, RawRequest) and isinstance(req, Request)
+                _req = plugs.recv_msg(req)
+                if _req is None:
+                    continue
+                req = _req
                 if req.type == REQ.MSG_NEW:
                     if req.msg == "CQD":
                         pretty.cqd(req.usrname)
@@ -64,13 +68,17 @@ async def recv_loop(conn: Connection) -> None:
     except asyncio.CancelledError:
             return
 
-async def input_send_loop(conn: Connection, quit_func: Callable[[], bool]) -> None:
+async def input_send_loop(conn: Connection, plugs: Plugins, quit_func: Callable[[], bool]) -> None:
     while True:
         pretty.prompt(curr_usrname, conn.sess, conn.level)
         try:
             msg = await ainput("")
         except asyncio.CancelledError:
             return
+        _msg = plugs.send_msg(msg)
+        if _msg is None:
+            continue
+        msg = _msg
         if not msg:
             continue
         if msg[0] == "-":
@@ -140,8 +148,10 @@ async def main() -> None:
         if not uid:
             raise Exception("login failed: wrong password or user doesn't exists")
         logging.debug("login successfully")
-        recv_loop_task = asyncio.create_task(recv_loop(connection))
-        input_send_loop_task = asyncio.create_task(input_send_loop(connection, lambda: recv_loop_task.cancel()))
+        plugs = Plugins(connection)
+        new_commands(plugs.get_commands())
+        recv_loop_task = asyncio.create_task(recv_loop(connection, plugs))
+        input_send_loop_task = asyncio.create_task(input_send_loop(connection, plugs, lambda: recv_loop_task.cancel()))
         def sigint_handler(sig: int, frame: FrameType | None) -> None:
             recv_loop_task.cancel()
             input_send_loop_task.cancel()

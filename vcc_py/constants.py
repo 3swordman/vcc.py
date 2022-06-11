@@ -13,13 +13,24 @@
 
 import asyncio
 from enum import IntEnum
-from typing import NamedTuple
+from typing import NamedTuple, Final
 
-VCC_MAGIC = 0x01328e22
-VCC_MAGIC_RL = 0x01328e36
+VCC_MAGIC: Final = 0x01328e22
+VCC_MAGIC_RL: Final = 0x01328e36
 
-VCC_PORT = 46
-VCC_DEFAULT_IP = "124.223.105.230"
+VCC_PORT: Final = 46
+VCC_DEFAULT_IP: Final = "124.223.105.230"
+
+REQ_SIZE: Final = 512
+USERNAME_SIZE: Final = 32
+PASSWD_SIZE: Final = 64
+MSG_SIZE: Final = REQ_SIZE - 5 * 4 - USERNAME_SIZE
+
+VCC_REQUEST_FORMAT: Final = f"<iiiii{USERNAME_SIZE}s{MSG_SIZE}s"
+VCC_RELAY_HEADER_FORMAT: Final = f"<iiIii{USERNAME_SIZE}s{USERNAME_SIZE}s"
+
+MSG_NEW_RELAY: Final = 0b1
+MSG_NEW_ONLY_VISIBLE: Final = 0b10
 
 
 class REQ(IntEnum):
@@ -95,14 +106,3 @@ async def ainput(prompt: str) -> str:
             print("\r")
             return ""
     return await loop.run_in_executor(None, input_handler)
-
-REQ_SIZE = 512
-USERNAME_SIZE = 32
-PASSWD_SIZE = 64
-MSG_SIZE = REQ_SIZE - 5 * 4 - USERNAME_SIZE
-
-VCC_REQUEST_FORMAT = f"<iiiii{USERNAME_SIZE}s{MSG_SIZE}s"
-VCC_RELAY_HEADER_FORMAT = f"<iiIii{USERNAME_SIZE}s{USERNAME_SIZE}s"
-
-MSG_NEW_RELAY = 0b1
-MSG_NEW_ONLY_VISIBLE = 0b10
