@@ -16,7 +16,6 @@ from vcc_py.sock import Connection
 from vcc_py.constants import Request
 
 def init(plugin: Plugin) -> None:
-
     ban_list: set[str] = set()
 
     @plugin.register_recv_hook

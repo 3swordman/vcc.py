@@ -148,20 +148,20 @@ async def main() -> None:
         if not uid:
             raise Exception("login failed: wrong password or user doesn't exists")
         logging.debug("login successfully")
-        plugs = Plugins(connection)
-        new_commands(plugs.get_commands())
-        recv_loop_task = asyncio.create_task(recv_loop(connection, plugs))
-        input_send_loop_task = asyncio.create_task(input_send_loop(connection, plugs, lambda: recv_loop_task.cancel()))
-        def sigint_handler(sig: int, frame: FrameType | None) -> None:
-            recv_loop_task.cancel()
-            input_send_loop_task.cancel()
-        signal.signal(signal.SIGINT, sigint_handler)
-        runloop: asyncio.Future[tuple[None, None]] = asyncio.gather(
-            recv_loop_task,
-            input_send_loop_task
-        )
-        await connection.send(type=REQ.CTL_UINFO, uid=0, msg=connection.usrname)
-        await runloop
+        with Plugins(connection) as plugs:
+            new_commands(plugs.get_commands())
+            recv_loop_task = asyncio.create_task(recv_loop(connection, plugs))
+            input_send_loop_task = asyncio.create_task(input_send_loop(connection, plugs, lambda: recv_loop_task.cancel()))
+            def sigint_handler(sig: int, frame: FrameType | None) -> None:
+                recv_loop_task.cancel()
+                input_send_loop_task.cancel()
+            signal.signal(signal.SIGINT, sigint_handler)
+            runloop: asyncio.Future[tuple[None, None]] = asyncio.gather(
+                recv_loop_task,
+                input_send_loop_task
+            )
+            await connection.send(type=REQ.CTL_UINFO, uid=0, msg=connection.usrname)
+            await runloop
     
 def amain() -> None:
     asyncio.run(main())

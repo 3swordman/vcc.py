@@ -11,8 +11,11 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Awaitable, Callable, TypeAlias
+from types import TracebackType
+from typing import Awaitable, Callable, Generator, TypeAlias
 import importlib
 
 from .sock import Connection
@@ -54,12 +57,27 @@ class Plugins:
         self.path = Path(__file__).absolute().parent / "plugins"
         self.module_names = [i.with_suffix("").name for i in self.path.iterdir() if i.is_file() and i.name != "__init__.py"]
         self.modules = [importlib.import_module(f".plugins.{name}", __package__) for name in self.module_names]
-        self.init_funcs: list[Callable[[Plugin], None]] = [module.init for module in self.modules]
+        self.init_funcs: list[Callable[[Plugin], Generator[None, None, None]] | Callable[[Plugin], None]] = [module.init for module in self.modules]
+        self.init_results: list[Generator[None, None, None]] = []
         self.plugs: list[Plugin] = []
         for init in self.init_funcs:
             plug = Plugin(conn)
-            init(plug)
+            result = init(plug)
+            if result is not None:
+                self.init_results.append(result)
+                next(self.init_results[-1])
+            
             self.plugs.append(plug)
+
+    def __enter__(self) -> Plugins:
+        return self
+
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
+        for i in self.init_results:
+            try:
+                next(i)
+            except StopIteration:
+                pass
 
     def send_msg(self, msg_: str) -> str | None:
         msg: str | None = msg_
