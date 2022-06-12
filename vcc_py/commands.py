@@ -136,6 +136,17 @@ async def do_cmd_rl(conn: Connection, args: list[str]) -> None:
     
     await conn.send_relay(msg=msg, visible="" if visible == "-" else visible)
     show_msg(conn.usrname, msg, conn.sess)
+
+async def do_cmd_pins(conn: Connection, args: list[str]) -> None:
+    """Insert a plugin"""
+    conn.plugs.add_plugin(args[0] if args else input("Plugin: "))
+
+async def do_cmd_pls(conn: Connection, args: list[str]) -> None:
+    """List plugins installed (not inserted)"""
+    for module in conn.plugs.modules:
+        if module.__package__ is None:
+            continue
+        print(module.__name__.replace(module.__package__, "")[1:])
     
 do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-help": do_cmd_help,
@@ -151,7 +162,9 @@ do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-cqd": do_cmd_cqd,
     "-ml": do_cmd_ml,
     "-send": do_cmd_send,
-    "-rl": do_cmd_rl
+    "-rl": do_cmd_rl,
+    "-pins": do_cmd_pins,
+    "-pls": do_cmd_pls
     # Encrypt
 }
 

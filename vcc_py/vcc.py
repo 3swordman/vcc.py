@@ -24,7 +24,7 @@ from typing import Callable
 
 from .sock import Connection
 from .constants import *
-from .commands import do_cmd, new_commands
+from .commands import do_cmd
 from .bh import do_bh
 from .plugin import Plugins
 from . import pretty
@@ -149,7 +149,7 @@ async def main() -> None:
             raise Exception("login failed: wrong password or user doesn't exists")
         logging.debug("login successfully")
         with Plugins(connection) as plugs:
-            new_commands(plugs.get_commands())
+            connection.plugs = plugs
             recv_loop_task = asyncio.create_task(recv_loop(connection, plugs))
             input_send_loop_task = asyncio.create_task(input_send_loop(connection, plugs, lambda: recv_loop_task.cancel()))
             def sigint_handler(sig: int, frame: FrameType | None) -> None:

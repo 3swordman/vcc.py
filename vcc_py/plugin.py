@@ -20,7 +20,7 @@ import importlib
 from .sock import Connection
 from .constants import *
 from .config import Configs
-from .plugins import *
+from .commands import new_commands
 
 send_hook_type: TypeAlias = Callable[[str], str | None]
 recv_hook_type: TypeAlias = Callable[[Request], Request | None]
@@ -77,6 +77,7 @@ class Plugins:
                 next(self.init_results[-1])
             
             self.plugs.append(plug)
+        new_commands(self.get_commands())
 
     def add_plugin(self, name: str) -> None:
         try:
@@ -92,6 +93,7 @@ class Plugins:
             next(self.init_results[-1])
 
         self.plugs.append(plug)
+        new_commands(self.get_commands())
 
     def __enter__(self) -> Plugins:
         return self

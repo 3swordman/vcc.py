@@ -13,12 +13,17 @@
 from __future__ import annotations
 
 from types import TracebackType
+from typing import TYPE_CHECKING
 import asyncio
 import logging
 import struct
 import socket
 
 from .constants import *
+
+# Can't import it directly, that will cause a circular import
+if TYPE_CHECKING:
+    from .plugin import Plugins
 
 def bad_bytes(string: bytes) -> str:
     return string.decode(errors="ignore")
@@ -31,6 +36,7 @@ def bad_ntohl(value: int) -> int:
 
 class Connection:
     """A wrapper of socket which can recv or send messages and it's most method is asynchronous"""
+    plugs: Plugins
     def __init__(self, ip: str=VCC_DEFAULT_IP, port: int=VCC_PORT, usrname: str="", sess: int=0) -> None:
         self.ip = ip
         self.port = port
