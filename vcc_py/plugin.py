@@ -13,13 +13,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from types import TracebackType
 from typing import Awaitable, Callable, Generator, TypeAlias
 import importlib
 
 from .sock import Connection
 from .constants import *
+from .config import Configs
+from .plugins import *
 
 send_hook_type: TypeAlias = Callable[[str], str | None]
 recv_hook_type: TypeAlias = Callable[[Request], Request | None]
@@ -54,12 +55,20 @@ class Plugin:
 
 class Plugins:
     def __init__(self, conn: Connection) -> None:
-        self.path = Path(__file__).absolute().parent / "plugins"
-        self.module_names = [i.with_suffix("").name for i in self.path.iterdir() if i.is_file() and i.name != "__init__.py"]
-        self.modules = [importlib.import_module(f".plugins.{name}", __package__) for name in self.module_names]
-        self.init_funcs: list[Callable[[Plugin], Generator[None, None, None]] | Callable[[Plugin], None]] = [module.init for module in self.modules]
-        self.init_results: list[Generator[None, None, None]] = []
-        self.plugs: list[Plugin] = []
+        self.configs = Configs()
+        self.configs.plugin_list
+        self.module_names = self.configs.plugin_list
+        try:
+            self.modules = [importlib.import_module(f".plugins.{name}", __package__) for name in self.module_names]
+        except ImportError:
+            # Find some module that cannot be imported
+            self.init_funcs: list[Callable[[Plugin], Generator[None, None, None]] | Callable[[Plugin], None]] = []
+            self.init_results: list[Generator[None, None, None]] = []
+            self.plugs: list[Plugin] = []
+        self.init_funcs = [module.init for module in self.modules]
+        self.init_results = []
+        self.plugs = []
+        self.connection = conn
         for init in self.init_funcs:
             plug = Plugin(conn)
             result = init(plug)
@@ -68,6 +77,21 @@ class Plugins:
                 next(self.init_results[-1])
             
             self.plugs.append(plug)
+
+    def add_plugin(self, name: str) -> None:
+        try:
+            self.modules.append(importlib.import_module(f".plugins.{name}", __package__))
+        except ImportError:
+            print("Cannot find the plugin")
+            return None
+        self.init_funcs.append(self.modules[-1].init)
+        plug = Plugin(self.connection)
+        result = self.init_funcs[-1](plug)
+        if result is not None:
+            self.init_results.append(result)
+            next(self.init_results[-1])
+
+        self.plugs.append(plug)
 
     def __enter__(self) -> Plugins:
         return self
