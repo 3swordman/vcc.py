@@ -11,7 +11,6 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
-import asyncio
 from enum import IntEnum
 from typing import NamedTuple, Final
 
@@ -96,13 +95,3 @@ class Relay(NamedTuple):
     
 class ExitError(Exception):
     pass
-
-async def ainput(prompt: str) -> str:
-    loop = asyncio.get_event_loop()
-    def input_handler() -> str:
-        try:
-            return input(prompt)
-        except EOFError:
-            print("\r")
-            return ""
-    return await loop.run_in_executor(None, input_handler)

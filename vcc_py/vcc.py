@@ -22,6 +22,9 @@ import signal
 from types import FrameType
 from typing import Callable
 
+from prompt_toolkit import PromptSession
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+
 from .sock import Connection
 from .constants import *
 from .commands import do_cmd
@@ -69,11 +72,17 @@ async def recv_loop(conn: Connection, plugs: Plugins) -> None:
             return
 
 async def input_send_loop(conn: Connection, plugs: Plugins, quit_func: Callable[[], bool]) -> None:
+    session: PromptSession[str] = PromptSession()
     while True:
         pretty.prompt(curr_usrname, conn.sess, conn.level)
         try:
-            msg = await ainput("")
+            msg = await session.prompt_async("", auto_suggest=AutoSuggestFromHistory())
         except asyncio.CancelledError:
+            return
+        except KeyboardInterrupt:
+            continue
+        except EOFError:
+            quit_func()
             return
         _msg = plugs.send_msg(msg)
         if _msg is None:
