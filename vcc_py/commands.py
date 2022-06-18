@@ -135,7 +135,7 @@ async def do_cmd_rl(conn: Connection, args: list[str]) -> None:
 
 async def do_cmd_pins(conn: Connection, args: list[str]) -> None:
     """Insert a plugin"""
-    conn.plugs.add_plugin(args[0] if args else input("Plugin: "))
+    await conn.plugs.add_plugin(args[0] if args else input("Plugin: "))
 
 async def do_cmd_pls(conn: Connection, args: list[str]) -> None:
     """List plugins installed (not inserted)"""
@@ -148,6 +148,10 @@ async def do_cmd_sname(conn: Connection, args: list[str]) -> None:
     """Get session nane"""
     await conn.send(type=REQ.CTL_SENAME, session=int(args[0] if args else input("sid: ")))
     await conn.wait_until_recv()
+
+async def do_cmd_encry(conn: Connection, args: list[str]) -> None:
+    """Send an encrypted message"""
+    await conn.send(flags=FLAG_ENCRYPTED, msg=conn.crypt.encrypt(args[0].encode()))
     
     
 do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
@@ -166,7 +170,8 @@ do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-rl": do_cmd_rl,
     "-pins": do_cmd_pins,
     "-pls": do_cmd_pls,
-    "-sname": do_cmd_sname
+    "-sname": do_cmd_sname,
+    "-encry": do_cmd_encry
     # Encrypt
 }
 

@@ -20,6 +20,7 @@ import struct
 import socket
 
 from .constants import *
+from .crypt import Crypt
 
 # Can't import it directly, that will cause a circular import
 if TYPE_CHECKING:
@@ -43,6 +44,7 @@ class Connection:
         self.usrname = usrname
         self._waiting_for_recv = False
         self.sess = sess
+        self.crypt = Crypt(key=b"1")
         self.level = 0
     
     async def __aenter__(self) -> Connection:
@@ -66,7 +68,7 @@ class Connection:
         session: int | None = None, 
         flags: int = 0, 
         usrname: str | None = None, 
-        msg: str = ""
+        msg: str | bytes = "",
     ) -> None:
         loop = asyncio.get_event_loop()
 
@@ -75,7 +77,10 @@ class Connection:
 
         if usrname is None:
             usrname = self.usrname
-        logging.debug(f"msgic: {magic}, type: {type}, uid: {uid}, session: {session}, flags: {flags}, usrname: {usrname}, msg: {msg}")
+        logging.debug(f"msgic: {magic}, type: {type}, uid: {uid}, session: {session}, flags: {flags}, usrname: {usrname}, msg: {msg!r}")
+        if isinstance(msg, str):
+            msg += "\0"
+            msg = msg.encode()
         await loop.sock_sendall(self._sock, struct.pack(
             VCC_REQUEST_FORMAT,
             socket.htonl(magic), 
@@ -84,7 +89,7 @@ class Connection:
             socket.htonl(session),
             flags,
             (usrname + "\0").encode(),
-            (msg + "\0").encode()
+            msg
         ))
 
     async def send_relay(self, *, magic: int = VCC_MAGIC_RL, uid: int = 0, session: int | None = None, usrname: str | None = None, msg: str, visible: str) -> None:

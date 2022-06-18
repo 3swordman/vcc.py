@@ -157,7 +157,7 @@ async def main() -> None:
         if not uid:
             raise Exception("login failed: wrong password or user doesn't exists")
         logging.debug("login successfully")
-        with Plugins(connection) as plugs:
+        async with Plugins(connection) as plugs:
             connection.plugs = plugs
             recv_loop_task = asyncio.create_task(recv_loop(connection, plugs))
             input_send_loop_task = asyncio.create_task(input_send_loop(connection, plugs, lambda: recv_loop_task.cancel()))
