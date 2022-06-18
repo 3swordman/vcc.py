@@ -143,6 +143,12 @@ async def do_cmd_pls(conn: Connection, args: list[str]) -> None:
         if module.__package__ is None:
             continue
         print(module.__name__.replace(module.__package__, "")[1:])
+
+async def do_cmd_sname(conn: Connection, args: list[str]) -> None:
+    """Get session nane"""
+    await conn.send(type=REQ.CTL_SENAME, session=int(args[0] if args else input("sid: ")))
+    await conn.wait_until_recv()
+    
     
 do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-help": do_cmd_help,
@@ -159,7 +165,8 @@ do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-send": do_cmd_send,
     "-rl": do_cmd_rl,
     "-pins": do_cmd_pins,
-    "-pls": do_cmd_pls
+    "-pls": do_cmd_pls,
+    "-sname": do_cmd_sname
     # Encrypt
 }
 

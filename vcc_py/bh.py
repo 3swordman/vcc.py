@@ -63,6 +63,12 @@ def do_ls_bh(req: Relay, req_raw: RawRelay) -> None:
     for i in range(req.uid):
         print(req_raw.msg[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
 
+def do_sename_bh(req: Request) -> None:
+    if req.session == -1:
+        print("No such session")
+        return
+    print(f"{req.session}: {req.msg}")
+
 def do_bh(req: Request | Relay, req_raw: RawRequest | RawRelay, conn: Connection) -> None:
     logging.debug(f"Message type: {req.type}")
     if not (isinstance(req, Request) and isinstance(req_raw, RawRequest)) and not (isinstance(req, Relay) and isinstance(req_raw, RawRelay)):
@@ -75,6 +81,8 @@ def do_bh(req: Request | Relay, req_raw: RawRequest | RawRelay, conn: Connection
                 do_uinfo_bh(req, req_raw, conn)
             case REQ.SYS_SCRINC:
                 do_incr_bh(req)
+            case REQ.CTL_SENAME:
+                do_sename_bh(req)
             case _:
                 raise Exception(f"Unknown response type: {req.type}, please update and retry")
     elif isinstance(req, Relay) and isinstance(req_raw, RawRelay):

@@ -33,14 +33,14 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        pip install build twine setuptools mypy
-        mypy --install-types vcc_py
+        pip install build twine setuptools mypy prompt_toolkit
     
     - name: Run linters
       uses: wearerequired/lint-action@v2
       with:
         mypy: true
         mypy_dir: vcc_py
+        mypy_args: --install-types
     
     - name: Build package
       run: python -m build

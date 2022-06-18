@@ -14,7 +14,7 @@
 from __future__ import annotations
 
 from types import TracebackType
-from typing import Awaitable, Callable, Generator, TypeAlias
+from typing import Awaitable, Callable, Generator, TypeAlias, overload
 import importlib
 
 from .sock import Connection
@@ -47,11 +47,18 @@ class Plugin:
         self._recv_hooks.append(func)
         return func
 
-    def register_cmd(self, name: str) -> Callable[[cmd_type], cmd_type]:
+    @overload
+    def register_cmd(self, name_or_func: str) -> Callable[[cmd_type], cmd_type]: ...
+
+    @overload
+    def register_cmd(self, name_or_func: cmd_type) -> cmd_type: ...
+
+    def register_cmd(self, name_or_func: str | cmd_type) -> Callable[[cmd_type], cmd_type] | cmd_type:
+        name = name_or_func if isinstance(name_or_func, str) else name_or_func.__name__
         def func(cmd_func: cmd_type) -> cmd_type:
             self.cmds[name] = cmd_func
             return cmd_func
-        return func
+        return func if isinstance(name_or_func, str) else func(name_or_func)
 
 class Plugins:
     def __init__(self, conn: Connection) -> None:
