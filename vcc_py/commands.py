@@ -63,10 +63,6 @@ async def do_cmd_help(conn: Connection, args: list[str]) -> None:
             continue
         help_line(name, func.__doc__)
 
-async def do_cmd_cqd(conn: Connection, args: list[str]) -> None:
-    """Send a "cqd", that's an interesting thing"""
-    await conn.send(type=REQ.MSG_SEND, usrname=conn.usrname, msg="CQD")
-
 async def do_cmd_quit(conn: Connection, args: list[str]) -> None:
     """Disconnect to server and exit vcc"""
     print("bye.")
@@ -159,7 +155,6 @@ do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-uinfo": do_cmd_uinfo,
     "-lself": do_cmd_lself,
     "-incr": do_cmd_incr,
-    "-cqd": do_cmd_cqd,
     "-ml": do_cmd_ml,
     "-send": do_cmd_send,
     "-rl": do_cmd_rl,

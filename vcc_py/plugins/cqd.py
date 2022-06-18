@@ -11,21 +11,13 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
+from vcc_py.plugin import Plugin
+from vcc_py.sock import Connection
 
-from pathlib import Path
+def init(plugin: Plugin) -> None:
+    @plugin.register_cmd("-cqd")
+    async def _(conn: Connection, args: list[str]) -> None:
+        """Send a "cqd", that's an interesting thing"""
+        await conn.send(msg="CQD")
 
-class Configs:
-    def __init__(self) -> None:
-        config_parent_directory_path = Path.home() / ".config"
-        config_parent_directory_path.mkdir(0o700, exist_ok=True)
 
-        config_directory_path = config_parent_directory_path / "vcc"
-        config_directory_path.mkdir(0o700, exist_ok=True)
-
-        plugins_list_path = config_directory_path / "plugins.txt"
-        if not plugins_list_path.exists():
-            plugins_list_path.touch(0o700)
-
-        with plugins_list_path.open("r") as file:
-            self.plugin_list = [i for i in file.read().split("\n") if i]
-        self.plugin_list += ["ban", "cqd"]
