@@ -19,6 +19,8 @@ import argparse
 import logging
 import os.path
 import signal
+import ipaddress
+import socket
 from types import FrameType
 from typing import Callable
 
@@ -139,10 +141,22 @@ async def main() -> None:
     if not (sys.stdout.isatty() and sys.stderr.isatty() and sys.stdin.isatty()):
         logging.error("stdout, stderr or stdin is redirected. ")
         sys.exit(1)
+
+    ip: str
+    try:
+        ipaddress.ip_address(args.ip)
+    except ValueError:
+        try:
+            ip = socket.gethostbyname(args.ip)
+        except socket.gaierror:
+            logging.error("not a valid ip or host. ")
+            sys.exit(1)
+    else:
+        ip = args.ip
     
     curr_usrname, password = get_username_and_password_or_session()
 
-    async with Connection(args.ip, args.port, curr_usrname) as connection:
+    async with Connection(ip, args.port, curr_usrname) as connection:
         logging.debug("init the socket successfully")
         await connection.send(
             type=REQ.CTL_LOGIN,

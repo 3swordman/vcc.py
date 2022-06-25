@@ -1,3 +1,4 @@
+# type: ignore
 # This file is part of vcc.py.
 
 # vcc.py is free software: you can redistribute it and/or modify it under the terms of the GNU General 

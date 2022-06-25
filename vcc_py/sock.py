@@ -20,7 +20,6 @@ import struct
 import socket
 
 from .constants import *
-from .crypt import Crypt
 
 # Can't import it directly, that will cause a circular import
 if TYPE_CHECKING:
@@ -44,7 +43,6 @@ class Connection:
         self.usrname = usrname
         self._waiting_for_recv = False
         self.sess = sess
-        self.crypt = Crypt(key=b"1")
         self.level = 0
     
     async def __aenter__(self) -> Connection:
