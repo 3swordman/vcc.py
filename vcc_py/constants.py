@@ -11,8 +11,15 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
+from __future__ import annotations
+
 from enum import IntEnum
-from typing import NamedTuple, Final
+from typing import NamedTuple, Final, TYPE_CHECKING
+
+from dataclasses import dataclass
+
+if TYPE_CHECKING:
+    from .plugin import Plugins
 
 VCC_MAGIC: Final = 0x01328e22
 VCC_MAGIC_RL: Final = 0x01328e36
@@ -95,6 +102,15 @@ class Relay(NamedTuple):
     usrname: str
     visible: str
     msg: str
+
+@dataclass
+class MyData:
+    plugs: Plugins
+    usrname: str
+    sess: int
+    sess_list: list[str]
+    level: int
+    type: bool
     
 class ExitError(Exception):
     pass

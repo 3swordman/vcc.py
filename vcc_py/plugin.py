@@ -27,8 +27,8 @@ recv_hook_type: TypeAlias = Callable[[Request], Request | None]
 cmd_type: TypeAlias = Callable[[Connection, list[str]], Awaitable[None]]
 
 class Plugin:
-    def __init__(self, conn: Connection) -> None:
-        self._conn = conn
+    def __init__(self, data: MyData) -> None:
+        self._data = data
         self._send_hooks: list[send_hook_type] = []
         self._recv_hooks: list[recv_hook_type] = []
         self.cmds: dict[str, cmd_type] = {}
@@ -80,7 +80,7 @@ class Plugins:
             self.init_results = []
             self.plugs = []
         for init in self.init_funcs:
-            plug = Plugin(self.connection)
+            plug = Plugin(self.connection.data)
             result = init(plug)
             if isinstance(result, Generator):
                 self.init_results.append(result)
@@ -99,7 +99,7 @@ class Plugins:
             print("Cannot find the plugin")
             return None
         self.init_funcs.append(self.modules[-1].init)
-        plug = Plugin(self.connection)
+        plug = Plugin(self.connection.data)
         result = self.init_funcs[-1](plug)
         if isinstance(result, Generator):
             self.init_results.append(result)

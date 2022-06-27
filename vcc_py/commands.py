@@ -20,14 +20,14 @@ from .pretty import help_line, prompt, show_msg
 
 async def do_cmd_currs(conn: Connection, args: list[str]) -> None:
     """Get current session id"""
-    print(conn.sess)
+    print(conn.data.sess)
 
 async def do_cmd_swtch(conn: Connection, args: list[str]) -> None:
     """Switch session"""
-    print(f"Old session id: {conn.sess}")
-    conn.sess = int(input("New session id: ") if not args else args[0])
+    print(f"Old session id: {conn.data.sess}")
+    conn.data.sess = int(input("New session id: ") if not args else args[0])
     # join session
-    await conn.send(type=REQ.CTL_JOINS, usrname=conn.usrname, session=conn.sess)
+    await conn.send(type=REQ.CTL_JOINS, usrname=conn.data.usrname, session=conn.data.sess)
 
 async def do_cmd_newse(conn: Connection, args: list[str]) -> None:
     """Create a new session"""
@@ -59,7 +59,7 @@ async def do_cmd_help(conn: Connection, args: list[str]) -> None:
         func = do_cmd_map[name]
         if func.__doc__ is None:
             # for type checker
-            print(f"No documentation for command \"{args[0]}\"", file=sys.stderr)
+            print(f"No documentation for command \"{name}\"", file=sys.stderr)
             continue
         help_line(name, func.__doc__)
 
@@ -91,7 +91,7 @@ async def do_cmd_uinfo(conn: Connection, args: list[str]) -> None:
 
 async def do_cmd_lself(conn: Connection, args: list[str]) -> None:
     """Reload information of myself"""
-    await conn.send(type=REQ.CTL_UINFO, uid=0, msg=conn.usrname)
+    await conn.send(type=REQ.CTL_UINFO, uid=0, msg=conn.data.usrname)
     await conn.wait_until_recv()
 
 async def do_cmd_ml(conn: Connection, args: list[str]) -> None:
@@ -131,15 +131,15 @@ async def do_cmd_rl(conn: Connection, args: list[str]) -> None:
     msg = " ".join(args)
     
     await conn.send_relay(msg=msg, visible="" if visible == "-" else visible)
-    show_msg(conn.usrname, msg, conn.sess)
+    show_msg(conn.data.usrname, msg, conn.data.sess)
 
 async def do_cmd_pins(conn: Connection, args: list[str]) -> None:
     """Insert a plugin"""
-    await conn.plugs.add_plugin(args[0] if args else input("Plugin: "))
+    await conn.data.plugs.add_plugin(args[0] if args else input("Plugin: "))
 
 async def do_cmd_pls(conn: Connection, args: list[str]) -> None:
     """List plugins installed (not inserted)"""
-    for module in conn.plugs.modules:
+    for module in conn.data.plugs.modules:
         if module.__package__ is None:
             continue
         print(module.__name__.replace(module.__package__, "")[1:])
@@ -150,14 +150,14 @@ async def do_cmd_sname(conn: Connection, args: list[str]) -> None:
     await conn.wait_until_recv()
 
 async def get_id_by_name(conn: Connection, name: str) -> int:
-    if name in conn.sess_list:
-        return conn.sess_list.index(name) + 1
+    if name in conn.data.sess_list:
+        return conn.data.sess_list.index(name) + 1
     else:
-        conn.type = True
+        conn.data.type = True
         await conn.send(type=REQ.CTL_SESS, uid=0)
         await conn.wait_until_recv()
-        if name in conn.sess_list:
-            return conn.sess_list.index(name) + 1
+        if name in conn.data.sess_list:
+            return conn.data.sess_list.index(name) + 1
         else:
             return -1
 
@@ -176,12 +176,12 @@ async def do_cmd_join(conn: Connection, args: list[str]) -> None:
     if (id := await get_id_by_name(conn, name)) == -1:
         print("No such session")
     else:
-        conn.sess = id
-        await conn.send(type=REQ.CTL_JOINS, usrname=conn.usrname, session=conn.sess)
+        conn.data.sess = id
+        await conn.send(type=REQ.CTL_JOINS, usrname=conn.data.usrname, session=conn.data.sess)
 
 # async def do_cmd_encry(conn: Connection, args: list[str]) -> None:
 #     """Send an encrypted message"""
-#     await conn.send(flags=FLAG_ENCRYPTED, msg=conn.crypt.encrypt(args[0].encode()))
+#     await conn.send(flags=FLAG_ENCRYPTED, msg=conn.data.crypt.encrypt(args[0].encode()))
     
     
 do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
@@ -213,7 +213,7 @@ async def do_cmd(string: str, conn: Connection) -> None:
     args = split_list[1:]
     try:
         await do_cmd_map[command](conn, args)
-        prompt(conn.usrname, conn.sess, conn.level)
+        prompt(conn.data.usrname, conn.data.sess, conn.data.level)
     except KeyError:
         print(f"Unknown command \"{command}\"", file=sys.stderr)
 

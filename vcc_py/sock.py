@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 from types import TracebackType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 import asyncio
 import logging
 import struct
@@ -36,16 +36,19 @@ def bad_ntohl(value: int) -> int:
 
 class Connection:
     """A wrapper of socket which can recv or send messages and it's most method is asynchronous"""
-    plugs: Plugins
+    # plugs: Plugins
     def __init__(self, ip: str=VCC_DEFAULT_IP, port: int=VCC_PORT, usrname: str="", sess: int=0) -> None:
         self.ip = ip
         self.port = port
-        self.usrname = usrname
         self._waiting_for_recv = False
-        self.sess = sess
-        self.sess_list: list[str] = []
-        self.level = 0
-        self.type = False
+        self.data = MyData(
+            plugs = cast("Plugins", None),
+            usrname = usrname,
+            sess = sess,
+            sess_list = [],
+            level = 0,
+            type = False
+        )
     
     async def __aenter__(self) -> Connection:
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -73,10 +76,10 @@ class Connection:
         loop = asyncio.get_event_loop()
 
         if session is None:
-            session = self.sess
+            session = self.data.sess
 
         if usrname is None:
-            usrname = self.usrname
+            usrname = self.data.usrname
         logging.debug(f"msgic: {magic}, type: {type}, uid: {uid}, session: {session}, flags: {flags}, usrname: {usrname}, msg: {msg!r}")
         if isinstance(msg, str):
             msg += "\0"
@@ -94,8 +97,8 @@ class Connection:
 
     async def send_relay(self, *, magic: int = VCC_MAGIC_RL, uid: int = 0, session: int | None = None, usrname: str | None = None, msg: str, visible: str) -> None:
         loop = asyncio.get_event_loop()
-        session = self.sess if session is None else session
-        usrname = self.usrname if usrname is None else usrname
+        session = self.data.sess if session is None else session
+        usrname = self.data.usrname if usrname is None else usrname
         length = struct.calcsize(VCC_RELAY_HEADER_FORMAT) + len(msg.encode()) + 1
     
         logging.debug(f"msgic: {magic}, uid: {uid}, session: {session}, length: {length}, usrname: {usrname}, msg: {msg}, visible: {visible}")

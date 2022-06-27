@@ -51,7 +51,7 @@ async def recv_loop(conn: Connection, plugs: Plugins) -> None:
                 if req.uid:
                     flag |= MSG_NEW_ONLY_VISIBLE
                 try:
-                    do_bh(req, req_raw, conn)
+                    do_bh(req, req_raw, conn.data)
                 except Exception:
                     if req.msg == "CQD":
                         pretty.cqd(req.usrname)
@@ -69,14 +69,14 @@ async def recv_loop(conn: Connection, plugs: Plugins) -> None:
                     else:
                         pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True)
                 else:
-                    do_bh(req, req_raw, conn)
+                    do_bh(req, req_raw, conn.data)
     except asyncio.CancelledError:
             return
 
 async def input_send_loop(conn: Connection, plugs: Plugins, quit_func: Callable[[], bool]) -> None:
     session: PromptSession[str] = PromptSession()
     while True:
-        pretty.prompt(curr_usrname, conn.sess, conn.level)
+        pretty.prompt(curr_usrname, conn.data.sess, conn.data.level)
         try:
             msg = await session.prompt_async("", auto_suggest=AutoSuggestFromHistory())
         except asyncio.CancelledError:
@@ -104,7 +104,7 @@ async def input_send_loop(conn: Connection, plugs: Plugins, quit_func: Callable[
             usrname=curr_usrname,
             msg=msg
         )
-        pretty.show_msg(curr_usrname, msg, conn.sess)
+        pretty.show_msg(curr_usrname, msg, conn.data.sess)
 
 connection: Connection
 curr_usrname: str
@@ -172,7 +172,7 @@ async def main() -> None:
             raise Exception("login failed: wrong password or user doesn't exists")
         logging.debug("login successfully")
         async with Plugins(connection) as plugs:
-            connection.plugs = plugs
+            connection.data.plugs = plugs
             recv_loop_task = asyncio.create_task(recv_loop(connection, plugs))
             input_send_loop_task = asyncio.create_task(input_send_loop(connection, plugs, lambda: recv_loop_task.cancel()))
             def sigint_handler(sig: int, frame: FrameType | None) -> None:
@@ -183,7 +183,7 @@ async def main() -> None:
                 recv_loop_task,
                 input_send_loop_task
             )
-            await connection.send(type=REQ.CTL_UINFO, uid=0, msg=connection.usrname)
+            await connection.send(type=REQ.CTL_UINFO, uid=0, msg=connection.data.usrname)
             await runloop
     
 def amain() -> None:

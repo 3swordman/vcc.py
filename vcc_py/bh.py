@@ -15,20 +15,19 @@ import struct
 import socket
 import logging
 
-from .sock import Connection
 from .constants import *
 
-def do_lsse_bh(req: Request, req_raw: RawRequest, conn: Connection) -> None:
+def do_lsse_bh(req: Request, req_raw: RawRequest, data: MyData) -> None:
     """List the sessions"""
     logging.debug(f"Lsse bh: score: {req.uid}")
-    conn.sess_list = [req_raw.msg[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode().split("\0", 2)[0] for i in range(req.uid)]
-    if not conn.type:
-        print("\n".join(conn.sess_list))
-    conn.type = False
+    data.sess_list = [req_raw.msg[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode().split("\0", 2)[0] for i in range(req.uid)]
+    if not data.type:
+        print("\n".join(data.sess_list))
+    data.type = False
 
 USER_FORMAT = f"<ii{USERNAME_SIZE}s{PASSWD_SIZE}s{MSG_SIZE - USERNAME_SIZE - PASSWD_SIZE - 2 * 4}x"
 
-def do_uinfo_bh(req: Request, req_raw: RawRequest, conn: Connection) -> None:
+def do_uinfo_bh(req: Request, req_raw: RawRequest, data: MyData) -> None:
     """Show user info"""
     logging.debug(f"Uinfo bh: uid: {req.uid}")
     if req.uid == -1:
@@ -43,9 +42,9 @@ def do_uinfo_bh(req: Request, req_raw: RawRequest, conn: Connection) -> None:
     if score < 0 or level < 0:
         print("User not found")
         return
-    if conn.usrname == username.decode().split("\x00")[0]:
+    if data.usrname == username.decode().split("\x00")[0]:
         print(f"level of yourself: {socket.ntohl(level)}")
-        conn.level = socket.ntohl(level)
+        data.level = socket.ntohl(level)
     else:
         print(f"{username.decode().split(chr(0))[0]}'s info: ")
         print("\tscore\tlevel")
@@ -71,16 +70,16 @@ def do_sename_bh(req: Request) -> None:
         return
     print(f"{req.session}: {req.msg}")
 
-def do_bh(req: Request | Relay, req_raw: RawRequest | RawRelay, conn: Connection) -> None:
+def do_bh(req: Request | Relay, req_raw: RawRequest | RawRelay, data: MyData) -> None:
     logging.debug(f"Message type: {req.type}")
     if not (isinstance(req, Request) and isinstance(req_raw, RawRequest)) and not (isinstance(req, Relay) and isinstance(req_raw, RawRelay)):
         raise Exception(f"Internal error")
     if isinstance(req, Request) and isinstance(req_raw, RawRequest):
         match req.type:
             case REQ.CTL_SESS:
-                do_lsse_bh(req, req_raw, conn)
+                do_lsse_bh(req, req_raw, data)
             case REQ.CTL_UINFO:
-                do_uinfo_bh(req, req_raw, conn)
+                do_uinfo_bh(req, req_raw, data)
             case REQ.SYS_SCRINC:
                 do_incr_bh(req)
             case REQ.CTL_SENAME:
