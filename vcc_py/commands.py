@@ -31,7 +31,7 @@ async def do_cmd_swtch(conn: Connection, args: list[str]) -> None:
 
 async def do_cmd_newse(conn: Connection, args: list[str]) -> None:
     """Create a new session"""
-    await conn.send(type=REQ.CTL_NEWSE, usrname=conn.usrname, msg=input("Name of new session: "))
+    await conn.send(type=REQ.CTL_NEWSE, usrname=args[0] if args else input("Name of new session: "))
 
 async def do_cmd_lsse(conn: Connection, args: list[str]) -> None:
     """List the sessions"""
@@ -149,9 +149,39 @@ async def do_cmd_sname(conn: Connection, args: list[str]) -> None:
     await conn.send(type=REQ.CTL_SENAME, session=int(args[0] if args else input("sid: ")))
     await conn.wait_until_recv()
 
-async def do_cmd_encry(conn: Connection, args: list[str]) -> None:
-    """Send an encrypted message"""
-    await conn.send(flags=FLAG_ENCRYPTED, msg=conn.crypt.encrypt(args[0].encode()))
+async def get_id_by_name(conn: Connection, name: str) -> int:
+    if name in conn.sess_list:
+        return conn.sess_list.index(name) + 1
+    else:
+        conn.type = True
+        await conn.send(type=REQ.CTL_SESS, uid=0)
+        await conn.wait_until_recv()
+        if name in conn.sess_list:
+            return conn.sess_list.index(name) + 1
+        else:
+            return -1
+
+async def do_cmd_sid(conn: Connection, args: list[str]) -> None:
+    """Get session id of name"""
+    name = args[0] if args else input("session name: ")
+    if (id := await get_id_by_name(conn, name)) == -1:
+        print("No such session")
+    else:
+        print(id)
+
+    
+async def do_cmd_join(conn: Connection, args: list[str]) -> None:
+    """Join a session (by session-name)"""
+    name = args[0] if args else input("session name: ")
+    if (id := await get_id_by_name(conn, name)) == -1:
+        print("No such session")
+    else:
+        conn.sess = id
+        await conn.send(type=REQ.CTL_JOINS, usrname=conn.usrname, session=conn.sess)
+
+# async def do_cmd_encry(conn: Connection, args: list[str]) -> None:
+#     """Send an encrypted message"""
+#     await conn.send(flags=FLAG_ENCRYPTED, msg=conn.crypt.encrypt(args[0].encode()))
     
     
 do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
@@ -171,8 +201,9 @@ do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-pins": do_cmd_pins,
     "-pls": do_cmd_pls,
     "-sname": do_cmd_sname,
-    "-encry": do_cmd_encry
-    # Encrypt
+    "-sid": do_cmd_sid,
+    "-join": do_cmd_join
+    # "-encry": do_cmd_encry
 }
 
 async def do_cmd(string: str, conn: Connection) -> None:

@@ -43,7 +43,9 @@ class Connection:
         self.usrname = usrname
         self._waiting_for_recv = False
         self.sess = sess
+        self.sess_list: list[str] = []
         self.level = 0
+        self.type = False
     
     async def __aenter__(self) -> Connection:
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

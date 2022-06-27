@@ -18,11 +18,13 @@ import logging
 from .sock import Connection
 from .constants import *
 
-def do_lsse_bh(req: Request, req_raw: RawRequest) -> None:
+def do_lsse_bh(req: Request, req_raw: RawRequest, conn: Connection) -> None:
     """List the sessions"""
     logging.debug(f"Lsse bh: score: {req.uid}")
-    for i in range(req.uid):
-        print(req_raw.msg[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode())
+    conn.sess_list = [req_raw.msg[i * USERNAME_SIZE: (i + 1) * USERNAME_SIZE].decode().split("\0", 2)[0] for i in range(req.uid)]
+    if not conn.type:
+        print("\n".join(conn.sess_list))
+    conn.type = False
 
 USER_FORMAT = f"<ii{USERNAME_SIZE}s{PASSWD_SIZE}s{MSG_SIZE - USERNAME_SIZE - PASSWD_SIZE - 2 * 4}x"
 
@@ -76,7 +78,7 @@ def do_bh(req: Request | Relay, req_raw: RawRequest | RawRelay, conn: Connection
     if isinstance(req, Request) and isinstance(req_raw, RawRequest):
         match req.type:
             case REQ.CTL_SESS:
-                do_lsse_bh(req, req_raw)
+                do_lsse_bh(req, req_raw, conn)
             case REQ.CTL_UINFO:
                 do_uinfo_bh(req, req_raw, conn)
             case REQ.SYS_SCRINC:
