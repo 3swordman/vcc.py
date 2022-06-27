@@ -18,6 +18,7 @@ import asyncio
 import logging
 import struct
 import socket
+import ipaddress
 
 from .constants import *
 
@@ -38,6 +39,8 @@ class Connection:
     """A wrapper of socket which can recv or send messages and it's most method is asynchronous"""
     # plugs: Plugins
     def __init__(self, ip: str=VCC_DEFAULT_IP, port: int=VCC_PORT, usrname: str="", sess: int=0) -> None:
+        ip_address = ipaddress.ip_address(ip)
+        self.version = ip_address.version
         self.ip = ip
         self.port = port
         self._waiting_for_recv = False
@@ -51,11 +54,18 @@ class Connection:
         )
     
     async def __aenter__(self) -> Connection:
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.setblocking(False)
-        self._sock.bind(("0.0.0.0", 0))
         loop = asyncio.get_event_loop()
-        await loop.sock_connect(self._sock, (self.ip, self.port))
+        if self.version == 4:
+            self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._sock.setblocking(False)
+            self._sock.bind(("0.0.0.0", 0))
+            await loop.sock_connect(self._sock, (self.ip, self.port))
+        elif self.version == 6:
+            self._sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+            self._sock.setblocking(False)
+            self._sock.bind(("::", 0))
+            await loop.sock_connect(self._sock, (self.ip, self.port, 0, 0))
+
         return self
 
     async def __aexit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:

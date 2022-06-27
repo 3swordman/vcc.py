@@ -11,13 +11,28 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
+from vcc_py.constants import Request
 from vcc_py.plugin import Plugin
 from vcc_py.sock import Connection
+from vcc_py.pretty import use_theme, Color, BLACK, RED, MODE_BLINK
+
+cqd_theme = Color(fg=BLACK, bg=RED, mode=MODE_BLINK)
+
+def print_cqd(username: str, msg: str) -> None:
+    """show the cqd"""
+    print(f"\n{use_theme(cqd_theme, 'CQD')} {username} send {msg}. ", end="")
 
 def init(plugin: Plugin) -> None:
     @plugin.register_cmd("-cqd")
     async def _(conn: Connection, args: list[str]) -> None:
         """Send a "cqd", that's an interesting thing"""
-        await conn.send(msg="CQD")
+        await conn.send(msg=f"-cqd#{args[0] if args else 'CQD'}\n")
+
+    @plugin.register_recv_hook
+    def _(req: Request) -> Request | None:
+        if req.msg.startswith("-cqd#"):
+            print_cqd(req.usrname, req.msg[5:-1])
+            return None
+        return req
 
 

@@ -51,7 +51,6 @@ class Color:
 usrname_theme = Color(fg=LIGHTBLUE, bg=BLACK, mode=MODE_LINE)
 msg_theme = Color(fg=YELLOW, bg=BLACK, mode=MODE_HIGHLIGHT)
 time_theme = Color(fg=YELLOW, bg=BLACK, mode=MODE_HIGHLIGHT)
-cqd_theme = Color(fg=BLACK, bg=RED, mode=MODE_BLINK)
 session_theme = Color(fg=RED, bg=BLACK, mode=MODE_HIGHLIGHT)
 level_theme = Color(fg=YELLOW, bg=BLACK, mode=MODE_LINE)
 help_cmd_theme = Color(fg=LIGHTBLUE, bg=BLACK, mode=MODE_HIGHLIGHT)
@@ -77,10 +76,6 @@ def show_msg(username: str, message: str, sess: int, newlinefirst: bool=False, f
 def session(sess: int) -> str:
     """display the session"""
     return use_theme(session_theme, f'#{sess:03}')
-
-def cqd(username: str) -> None:
-    """show the cqd"""
-    print(f"\n{use_theme(cqd_theme, 'CQD')} {username} send CQD. ", end="")
 
 def level(level: int) -> str:
     """display the level"""

@@ -53,10 +53,7 @@ async def recv_loop(conn: Connection, plugs: Plugins) -> None:
                 try:
                     do_bh(req, req_raw, conn.data)
                 except Exception:
-                    if req.msg == "CQD":
-                        pretty.cqd(req.usrname)
-                    else:
-                        pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True, flag=flag)
+                    pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True, flag=flag)
             else:
                 assert isinstance(req_raw, RawRequest) and isinstance(req, Request)
                 _req = plugs.recv_msg(req)
@@ -64,10 +61,7 @@ async def recv_loop(conn: Connection, plugs: Plugins) -> None:
                     continue
                 req = _req
                 if req.type == REQ.MSG_NEW:
-                    if req.msg == "CQD":
-                        pretty.cqd(req.usrname)
-                    else:
-                        pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True)
+                    pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True)
                 else:
                     do_bh(req, req_raw, conn.data)
     except asyncio.CancelledError:
