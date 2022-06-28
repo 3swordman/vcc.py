@@ -140,9 +140,9 @@ async def do_cmd_pins(conn: Connection, args: list[str]) -> None:
 async def do_cmd_pls(conn: Connection, args: list[str]) -> None:
     """List plugins installed (not inserted)"""
     for module in conn.data.plugs.modules:
-        if module.__package__ is None:
+        if module["__package__"] is None:
             continue
-        print(module.__name__.replace(module.__package__, "")[1:])
+        print(module["__name__"].replace(module["__package__"], "")[1:])
 
 async def do_cmd_sname(conn: Connection, args: list[str]) -> None:
     """Get session nane"""
@@ -179,6 +179,14 @@ async def do_cmd_join(conn: Connection, args: list[str]) -> None:
         conn.data.sess = id
         await conn.send(type=REQ.CTL_JOINS, usrname=conn.data.usrname, session=conn.data.sess)
 
+async def do_cmd_quits(conn: Connection, args: list[str]) -> None:
+    """Quit session"""
+    session = int(args[0] if args else input("sid: "))
+    if conn.data.sess == sid:
+        conn.data.sess = 0
+    await conn.send(type=REQ.CTL_QUITS, usrname=conn.data.usrname, session=session)
+
+
 # async def do_cmd_encry(conn: Connection, args: list[str]) -> None:
 #     """Send an encrypted message"""
 #     await conn.send(flags=FLAG_ENCRYPTED, msg=conn.data.crypt.encrypt(args[0].encode()))
@@ -202,7 +210,8 @@ do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-pls": do_cmd_pls,
     "-sname": do_cmd_sname,
     "-sid": do_cmd_sid,
-    "-join": do_cmd_join
+    "-join": do_cmd_join,
+    "-quits": do_cmd_quits
     # "-encry": do_cmd_encry
 }
 

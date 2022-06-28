@@ -55,6 +55,7 @@ class REQ(IntEnum):
     CTL_IALOG = 12
     SYS_INFO = 13
     CTL_SENAME = 14
+    CTL_QUITS = 15
 
 class RawRequest(NamedTuple):
     magic: int
