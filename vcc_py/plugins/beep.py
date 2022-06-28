@@ -17,15 +17,16 @@ import os
 from vcc_py.plugin import Plugin
 from vcc_py.constants import Request
 
-def init(plugin: Plugin) -> None:
-    @plugin.register_recv_hook
-    def _(req: Request) -> Request | None:
-        print("\a", file=sys.stderr)
-        msg = req.msg
-        if len(msg) > 10:
-            msg = msg[:10] + "..."
-        if not sys.platform.startswith("win32"):
-            os.system(f"notify-send \"vcc\" \"{req.usrname}: {msg}\" >/dev/null 2>&1")
-        return req
+plugin: Plugin = globals()["plugin"]
+
+@plugin.register_recv_hook
+def _(req: Request) -> Request | None:
+    print("\a", file=sys.stderr)
+    msg = req.msg
+    if len(msg) > 10:
+        msg = msg[:10] + "..."
+    if not sys.platform.startswith("win32"):
+        os.system(f"notify-send \"vcc\" \"{req.usrname}: {msg}\" >/dev/null 2>&1")
+    return req
 
 

@@ -28,4 +28,4 @@ class Configs:
 
         with plugins_list_path.open("r") as file:
             self.plugin_list = [i for i in file.read().split("\n") if i]
-        self.plugin_list += ["ban", "cqd"]
+        self.plugin_list += ["ban"]

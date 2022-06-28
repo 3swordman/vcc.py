@@ -16,23 +16,24 @@ from vcc_py.plugin import Plugin
 from vcc_py.sock import Connection
 from vcc_py.pretty import use_theme, Color, BLACK, RED, MODE_BLINK
 
+plugin: Plugin = globals()["plugin"]
+
 cqd_theme = Color(fg=BLACK, bg=RED, mode=MODE_BLINK)
 
 def print_cqd(username: str, msg: str) -> None:
     """show the cqd"""
     print(f"\n{use_theme(cqd_theme, 'CQD')} {username} send {msg}. ", end="")
 
-def init(plugin: Plugin) -> None:
-    @plugin.register_cmd("-cqd")
-    async def _(conn: Connection, args: list[str]) -> None:
-        """Send a "cqd", that's an interesting thing"""
-        await conn.send(msg=f"-cqd#{args[0] if args else 'CQD'}\n")
+@plugin.register_cmd("-cqd")
+async def _(conn: Connection, args: list[str]) -> None:
+    """Send a "cqd", that's an interesting thing"""
+    await conn.send(msg=f"-cqd#{args[0] if args else 'CQD'}\n")
 
-    @plugin.register_recv_hook
-    def _(req: Request) -> Request | None:
-        if req.msg.startswith("-cqd#"):
-            print_cqd(req.usrname, req.msg[5:-1])
-            return None
-        return req
+@plugin.register_recv_hook
+def _(req: Request) -> Request | None:
+    if req.msg.startswith("-cqd#"):
+        print_cqd(req.usrname, req.msg[5:-1])
+        return None
+    return req
 
 

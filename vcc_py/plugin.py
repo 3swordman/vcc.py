@@ -14,8 +14,8 @@
 from __future__ import annotations
 
 from types import TracebackType
-from typing import Awaitable, Callable, Generator, TypeAlias, overload
-import importlib
+from typing import Awaitable, Callable, TypeAlias, overload, Any
+import runpy
 
 from .sock import Connection
 from .constants import *
@@ -66,56 +66,37 @@ class Plugins:
 
     async def __aenter__(self) -> Plugins:
         self.configs = Configs()
-        self.configs.plugin_list
         self.module_names = self.configs.plugin_list
-        try:
-            self.modules = [importlib.import_module(f".plugins.{name}", __package__) for name in self.module_names]
-        except ImportError:
-            # Find some module that cannot be imported
-            self.init_funcs: list[Callable[[Plugin], Generator[None, None, None] | Awaitable[None] | None]] = []
-            self.init_results: list[Generator[None, None, None]] = []
-            self.plugs: list[Plugin] = []
-        else:
-            self.init_funcs = [module.init for module in self.modules]
-            self.init_results = []
-            self.plugs = []
-        for init in self.init_funcs:
+        self.modules: list[dict[str, Any]] = []
+        self.plugs: list[Plugin] = []
+        for name in self.module_names:
             plug = Plugin(self.connection.data)
-            result = init(plug)
-            if isinstance(result, Generator):
-                self.init_results.append(result)
-                next(self.init_results[-1])
-            elif isinstance(result, Awaitable):
-                await result
-            
+            self.modules.append(runpy.run_module(f"vcc_py.plugins.{name}", {
+                "plugin": plug
+            }))
             self.plugs.append(plug)
+
+            # result = init(plug)
+            # if isinstance(result, Generator):
+            #     self.init_results.append(result)
+            #     next(self.init_results[-1])
+            # elif isinstance(result, Awaitable):
+            #     await result
+            
+            # self.plugs.append(plug)
         new_commands(self.get_commands())
         return self
 
     async def add_plugin(self, name: str) -> None:
-        try:
-            self.modules.append(importlib.import_module(f".plugins.{name}", __package__))
-        except ImportError:
-            print("Cannot find the plugin")
-            return None
-        self.init_funcs.append(self.modules[-1].init)
         plug = Plugin(self.connection.data)
-        result = self.init_funcs[-1](plug)
-        if isinstance(result, Generator):
-            self.init_results.append(result)
-            next(self.init_results[-1])
-        elif isinstance(result, Awaitable):
-            await result
-
+        self.modules.append(runpy.run_module(f"vcc_py.plugins.{name}", {
+            "plugin": plug
+        }))
         self.plugs.append(plug)
-        new_commands(self.get_commands())
+        new_commands(plug.cmds)
 
     async def __aexit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
-        for i in self.init_results:
-            try:
-                next(i)
-            except StopIteration:
-                pass
+        pass
 
     def send_msg(self, msg_: str) -> str | None:
         msg: str | None = msg_

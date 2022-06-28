@@ -15,31 +15,33 @@ from vcc_py.plugin import Plugin
 from vcc_py.sock import Connection
 from vcc_py.constants import Request
 
-def init(plugin: Plugin) -> None:
-    ban_list: set[str] = set()
+# Well, a bad way to ignore the Unbound, you can ignore it if you don't want to use typing
+plugin: Plugin = globals()["plugin"]
 
-    @plugin.register_recv_hook
-    def _(a: Request) -> Request | None:
-        if a.usrname in ban_list:
-            return None
-        return a
+ban_list: set[str] = set()
 
-    @plugin.register_cmd("-ban")
-    async def _(conn: Connection, args: list[str]) -> None:
-        """Ban someone so you won't receive messages from him/her"""
-        if args:
-            ban_people = args[0]
-        else:
-            ban_people = input("Enter the people you would like to ban: ")
-        ban_list.add(ban_people)
+@plugin.register_recv_hook
+def _(a: Request) -> Request | None:
+    if a.usrname in ban_list:
+        return None
+    return a
 
-    @plugin.register_cmd("-unban")
-    async def _(conn: Connection, args: list[str]) -> None:
-        """Unban someone so you will be able to receive more messages from him/her"""
-        if args:
-            unban_people = args[0]
-        else:
-            unban_people = input("Enter the people you would like to unban: ")
-        ban_list.discard(unban_people)
+@plugin.register_cmd("-ban")
+async def _(conn: Connection, args: list[str]) -> None:
+    """Ban someone so you won't receive messages from him/her"""
+    if args:
+        ban_people = args[0]
+    else:
+        ban_people = input("Enter the people you would like to ban: ")
+    ban_list.add(ban_people)
+
+@plugin.register_cmd("-unban")
+async def _(conn: Connection, args: list[str]) -> None:
+    """Unban someone so you will be able to receive more messages from him/her"""
+    if args:
+        unban_people = args[0]
+    else:
+        unban_people = input("Enter the people you would like to unban: ")
+    ban_list.discard(unban_people)
 
 

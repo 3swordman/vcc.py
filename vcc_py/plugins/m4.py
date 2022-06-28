@@ -18,29 +18,30 @@ import sys
 from vcc_py.plugin import Plugin
 from vcc_py.sock import Connection
 
-def init(plugin: Plugin) -> None:
-    if sys.platform.startswith("win32"):
-        return
-    loaded = False
+plugin: Plugin = globals()["plugin"]
+
+if sys.platform.startswith("win32"):
+    exit()
+loaded = False
+command = ""
+@plugin.register_cmd("-m4def")
+async def _(conn: Connection, args: list[str]) -> None:
+    """Define a macro which i will remember"""
+    global loaded
+    global command
     command = ""
-    @plugin.register_cmd("-m4def")
-    async def _(conn: Connection, args: list[str]) -> None:
-        """Define a macro which i will remember"""
-        nonlocal loaded
-        nonlocal command
-        command = ""
-        while a := input("m4> "):
-            if a == "finish":
-                break
-            command += a
-        loaded = True
-        
-    @plugin.register_send_hook
-    def _(s: str) -> str:
-        if s.startswith("-") or not loaded:
-            return s
-        with Popen(["/bin/m4"], stdin=PIPE, stdout=PIPE, universal_newlines=True) as proc:
-            output, _ = proc.communicate(command + s)
-            return output
+    while a := input("m4> "):
+        if a == "finish":
+            break
+        command += a
+    loaded = True
+    
+@plugin.register_send_hook
+def _(s: str) -> str:
+    if s.startswith("-") or not loaded:
+        return s
+    with Popen(["/bin/m4"], stdin=PIPE, stdout=PIPE, universal_newlines=True) as proc:
+        output, _ = proc.communicate(command + s)
+        return output
 
 

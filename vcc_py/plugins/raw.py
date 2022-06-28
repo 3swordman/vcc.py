@@ -19,41 +19,43 @@ from vcc_py.constants import *
 from vcc_py.sock import Connection
 
 # Designed for testing and debuging
-def init(plugin: Plugin) -> None:
-    connection_list: list[Connection] = []
 
-    @plugin.register_cmd("-radd")
-    async def _(conn: Connection, args: list[str]) -> None:
-        """Create new connections"""
-        nonlocal connection_list
-        count = int(args[0] if args else input("count: "))
-        data = conn.data
-        connection_list += list(await asyncio.gather(*[asyncio.create_task(Connection(conn.ip, conn.port, data.usrname, data.sess).__aenter__()) for _ in range(count)]))
+plugin: Plugin = globals()["plugin"]
 
-    @plugin.register_cmd("-rsend")
-    async def _(conn: Connection, args: list[str]) -> None:
-        """Send messages"""
-        print(args)
-        parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
-        parser.add_argument("--magic", type=int, metavar="magic", default=VCC_MAGIC)
-        parser.add_argument("--type", type=int, metavar="type", default=REQ.MSG_SEND)
-        parser.add_argument("--uid", type=int, metavar="uid", default=0)
-        parser.add_argument("--session", type=int, metavar="session", default=0)
-        parser.add_argument("--flags", type=int, metavar="flags", default=0)
-        parser.add_argument("--usrname", type=str, metavar="usrname", default=conn.data.usrname)
-        parser.add_argument("--repeat", type=int, metavar="repeat", default=1)
-        parser.add_argument(dest="msg", metavar="msg", nargs="?")
-        args_ns = parser.parse_args(args)
-        print(args_ns)
-        await asyncio.gather(*[asyncio.create_task(i.send(
-            magic = args_ns.magic,
-            type = args_ns.type,
-            uid = args_ns.uid,
-            session = args_ns.uid,
-            flags = args_ns.flags,
-            usrname = args_ns.usrname,
-            msg = args_ns.msg
-        )) for i in connection_list for _ in range(args_ns.repeat)])
+connection_list: list[Connection] = []
+
+@plugin.register_cmd("-radd")
+async def _(conn: Connection, args: list[str]) -> None:
+    """Create new connections"""
+    global connection_list
+    count = int(args[0] if args else input("count: "))
+    data = conn.data
+    connection_list += list(await asyncio.gather(*[asyncio.create_task(Connection(conn.ip, conn.port, data.usrname, data.sess).__aenter__()) for _ in range(count)]))
+
+@plugin.register_cmd("-rsend")
+async def _(conn: Connection, args: list[str]) -> None:
+    """Send messages"""
+    print(args)
+    parser = argparse.ArgumentParser(add_help=False, exit_on_error=False)
+    parser.add_argument("--magic", type=int, metavar="magic", default=VCC_MAGIC)
+    parser.add_argument("--type", type=int, metavar="type", default=REQ.MSG_SEND)
+    parser.add_argument("--uid", type=int, metavar="uid", default=0)
+    parser.add_argument("--session", type=int, metavar="session", default=0)
+    parser.add_argument("--flags", type=int, metavar="flags", default=0)
+    parser.add_argument("--usrname", type=str, metavar="usrname", default=conn.data.usrname)
+    parser.add_argument("--repeat", type=int, metavar="repeat", default=1)
+    parser.add_argument(dest="msg", metavar="msg", nargs="?")
+    args_ns = parser.parse_args(args)
+    print(args_ns)
+    await asyncio.gather(*[asyncio.create_task(i.send(
+        magic = args_ns.magic,
+        type = args_ns.type,
+        uid = args_ns.uid,
+        session = args_ns.uid,
+        flags = args_ns.flags,
+        usrname = args_ns.usrname,
+        msg = args_ns.msg
+    )) for i in connection_list for _ in range(args_ns.repeat)])
 
 
 
