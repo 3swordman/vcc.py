@@ -13,6 +13,7 @@
 
 import sys
 import os
+import shlex
 
 from vcc_py.plugin import Plugin
 from vcc_py.constants import Request
@@ -26,7 +27,7 @@ def _(req: Request) -> Request | None:
     if len(msg) > 10:
         msg = msg[:10] + "..."
     if not sys.platform.startswith("win32"):
-        os.system(f"notify-send \"vcc\" \"{req.usrname}: {msg}\" >/dev/null 2>&1")
+        os.system(f"notify-send \"vcc\" \"{shlex.quote(req.usrname)}: {shlex.quote(msg)}\" >/dev/null 2>&1")
     return req
 
 
