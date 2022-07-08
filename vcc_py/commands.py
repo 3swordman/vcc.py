@@ -18,26 +18,6 @@ from .sock import Connection
 from .constants import *
 from .pretty import help_line, prompt, show_msg
 
-async def do_cmd_currs(conn: Connection, args: list[str]) -> None:
-    """Get current session id"""
-    print(conn.data.sess)
-
-async def do_cmd_swtch(conn: Connection, args: list[str]) -> None:
-    """Switch session"""
-    print(f"Old session id: {conn.data.sess}")
-    conn.data.sess = int(input("New session id: ") if not args else args[0])
-    # join session
-    await conn.send(type=REQ.CTL_JOINS, usrname=conn.data.usrname, session=conn.data.sess)
-
-async def do_cmd_newse(conn: Connection, args: list[str]) -> None:
-    """Create a new session"""
-    await conn.send(type=REQ.CTL_NEWSE, usrname=args[0] if args else input("Name of new session: "))
-
-async def do_cmd_lsse(conn: Connection, args: list[str]) -> None:
-    """List the sessions"""
-    await conn.send(type=REQ.CTL_SESS, uid=0)
-    await conn.wait_until_recv()
-
 async def do_cmd_help(conn: Connection, args: list[str]) -> None:
     """Show information about every message. """
     if args:
@@ -80,9 +60,16 @@ async def do_cmd_incr(conn: Connection, args: list[str]) -> None:
     await conn.wait_until_recv()
 
 async def do_cmd_ls(conn: Connection, args: list[str]) -> None:
-    """List the users"""
-    await conn.send(type=REQ.CTL_USRS, uid=0)
-    await conn.wait_until_recv()
+    """List the users or sessions"""
+    match args:
+        case ["-s" | "--session" | "s" | "session"]:
+            await conn.send(type=REQ.CTL_SESS, uid=0)
+            await conn.wait_until_recv()
+        case ["-u" | "--user" | "u" | "user"] | []:
+            await conn.send(type=REQ.CTL_USRS, uid=0)
+            await conn.wait_until_recv()
+        case _:
+            pass
 
 async def do_cmd_uinfo(conn: Connection, args: list[str]) -> None:
     """Get user information"""
@@ -133,21 +120,21 @@ async def do_cmd_rl(conn: Connection, args: list[str]) -> None:
     await conn.send_relay(msg=msg, visible="" if visible == "-" else visible)
     show_msg(conn.data.usrname, msg, conn.data.sess)
 
-async def do_cmd_pins(conn: Connection, args: list[str]) -> None:
-    """Insert a plugin"""
-    await conn.data.plugs.add_plugin(args[0] if args else input("Plugin: "))
-
-async def do_cmd_pls(conn: Connection, args: list[str]) -> None:
-    """List plugins installed (not inserted)"""
-    for module in conn.data.plugs.modules:
-        if module["__package__"] is None:
-            continue
-        print(module["__name__"].replace(module["__package__"], "")[1:])
-
-async def do_cmd_sname(conn: Connection, args: list[str]) -> None:
-    """Get session nane"""
-    await conn.send(type=REQ.CTL_SENAME, session=int(args[0] if args else input("sid: ")))
-    await conn.wait_until_recv()
+async def do_cmd_plg(conn: Connection, args: list[str]) -> None:
+    """Plugin control"""
+    match args:
+        case ["-i" | "--install" | "i" | "install", name]:
+            try:
+                await conn.data.plugs.add_plugin(name)
+            except ImportError:
+                print("no such plugin")
+        case ["-l" | "--list" | "ls" | "list"]:
+            for module in conn.data.plugs.modules:
+                if module["__package__"] is None:
+                    continue
+                print(module["__name__"].replace(module["__package__"], "")[1:])
+        case _:
+            print("usage: -plg [-i|-l|--install|--list|i|ls|install|list] [name]")
 
 async def get_id_by_name(conn: Connection, name: str) -> int:
     if name in conn.data.sess_list:
@@ -161,31 +148,45 @@ async def get_id_by_name(conn: Connection, name: str) -> int:
         else:
             return -1
 
-async def do_cmd_sid(conn: Connection, args: list[str]) -> None:
-    """Get session id of name"""
-    name = args[0] if args else input("session name: ")
-    if (id := await get_id_by_name(conn, name)) == -1:
-        print("No such session")
-    else:
-        print(id)
-
+async def do_cmd_sess(conn: Connection, args: list[str]) -> None:
+    """Session control"""
+    match args:
+        case ["-n" | "--new" | "n" | "new", name]:
+            await conn.send(type=REQ.CTL_NEWSE, usrname=name)
+        case ["-c" | "--curr" | "--current" | "c" | "curr" | "current"]:
+            print(conn.data.sess)
+        case ["-s" | "--switch" | "s" | "switch", id_]:
+            id = int(id_)
+            print(f"Old session id: {conn.data.sess}")
+            conn.data.sess = id
+            await conn.send(type=REQ.CTL_JOINS, session=id)
+        case ["-p" | "--name" | "p" | "na" | "name", name]:
+            # who knows what "-p" really means?
+            sid = int(name)
+            await conn.send(type=REQ.CTL_SENAME, session=sid)
+            await conn.wait_until_recv()
+        case ["-i" | "--id" | "i" | "id", name]:
+            if (id := await get_id_by_name(conn, name)) == -1:
+                print("No such session")
+            else:
+                print(id)
+        case ["-j" | "--join" | "j" | "join", name]:
+            if (id := await get_id_by_name(conn, name)) == -1:
+                print("No such session")
+            else:
+                conn.data.sess = id
+                await conn.send(type=REQ.CTL_JOINS, usrname=conn.data.usrname, session=conn.data.sess)
+        case ["-q" | "--quit" | "q" | "quit", id_]:
+            id = int(id_)
+            if conn.data.sess == id:
+                conn.data.sess = 0
+            await conn.send(type=REQ.CTL_QUITS, usrname=conn.data.usrname, session=id)
+        case ["-l", "--list", "ls", "list"]:
+            await conn.send(type=REQ.CTL_SESS, uid=0)
+            await conn.wait_until_recv()
+        case _:
+            pass
     
-async def do_cmd_join(conn: Connection, args: list[str]) -> None:
-    """Join a session (by session-name)"""
-    name = args[0] if args else input("session name: ")
-    if (id := await get_id_by_name(conn, name)) == -1:
-        print("No such session")
-    else:
-        conn.data.sess = id
-        await conn.send(type=REQ.CTL_JOINS, usrname=conn.data.usrname, session=conn.data.sess)
-
-async def do_cmd_quits(conn: Connection, args: list[str]) -> None:
-    """Quit session"""
-    session = int(args[0] if args else input("sid: "))
-    if conn.data.sess == sid:
-        conn.data.sess = 0
-    await conn.send(type=REQ.CTL_QUITS, usrname=conn.data.usrname, session=session)
-
 
 # async def do_cmd_encry(conn: Connection, args: list[str]) -> None:
 #     """Send an encrypted message"""
@@ -196,22 +197,14 @@ do_cmd_map: dict[str, Callable[[Connection, list[str]], Awaitable[None]]] = {
     "-help": do_cmd_help,
     "-quit": do_cmd_quit,
     "-ls": do_cmd_ls,
-    "-newse": do_cmd_newse,
-    "-currs": do_cmd_currs,
-    "-swtch": do_cmd_swtch,
-    "-lsse": do_cmd_lsse,
     "-uinfo": do_cmd_uinfo,
     "-lself": do_cmd_lself,
     "-incr": do_cmd_incr,
     "-ml": do_cmd_ml,
     "-send": do_cmd_send,
     "-rl": do_cmd_rl,
-    "-pins": do_cmd_pins,
-    "-pls": do_cmd_pls,
-    "-sname": do_cmd_sname,
-    "-sid": do_cmd_sid,
-    "-join": do_cmd_join,
-    "-quits": do_cmd_quits
+    "-plg": do_cmd_plg,
+    "-sess": do_cmd_sess,
     # "-encry": do_cmd_encry
 }
 

@@ -1,4 +1,4 @@
-version_tuple = (0, 3, 13)
+version_tuple = (0, 3, 14)
 major, minor, patch = version_tuple
 
 __version__ = f"{major}.{minor}.{patch}"
