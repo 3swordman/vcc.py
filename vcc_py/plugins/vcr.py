@@ -10,3 +10,37 @@
 
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
+
+from pathlib import Path
+from typing import Generator
+import os
+
+from vcc_py.constants import *
+from vcc_py.plugin import Plugin
+from vcc_py.readconf import parse
+
+plugin: Plugin = globals()["plugin"]
+
+config_text = (Path.home() / ".vcc-config").read_bytes().decode(errors="ignore")
+config = parse(config_text)
+
+sid = config["vcr_listen_sid"]
+
+@plugin.register_init_func
+def _(data: MyData) -> Generator[None, None, None]:
+    yield
+    os.unsetenv("VCR_TYPE")
+    os.unsetenv("VCR_USER")
+    os.unsetenv("VCR_MSG")
+    os.unsetenv("VCR_SID")
+
+@plugin.register_recv_hook
+def _(req: Request) -> Request:
+    if req.session != sid:
+        return req
+    os.putenv("VCR_TYPE", str(req.type))
+    os.putenv("VCR_USER", req.usrname)
+    os.putenv("VCR_MSG", req.msg)
+    os.putenv("VCR_SID", str(sid))
+    os.system(f"{config['vcr_executable']}")
+    return req

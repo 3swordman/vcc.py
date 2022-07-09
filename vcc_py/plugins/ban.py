@@ -15,7 +15,7 @@ from vcc_py.plugin import Plugin
 from vcc_py.sock import Connection
 from vcc_py.constants import Request
 
-# Well, a bad way to ignore the Unbound, you can ignore it if you don't want to use typing
+# Well, a dirty hack to ignore the Unbound, you can remove it if you don't want to use typing
 plugin: Plugin = globals()["plugin"]
 
 ban_list: set[str] = set()
