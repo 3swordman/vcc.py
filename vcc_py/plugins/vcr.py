@@ -10,24 +10,3 @@
 
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
-
-import sys
-from subprocess import Popen, DEVNULL
-
-from vcc_py.plugin import Plugin
-from vcc_py.constants import Request
-
-plugin: Plugin = globals()["plugin"]
-
-@plugin.register_recv_hook
-def _(req: Request) -> Request | None:
-    print("\a", file=sys.stderr)
-    msg = req.msg
-    if len(msg) > 10:
-        msg = msg[:10] + "..."
-    if not sys.platform.startswith("win32"):
-        with Popen(["notify-send", "vcc", f"{req.usrname}: {msg}"], stdout=DEVNULL, stderr=DEVNULL):
-            pass
-    return req
-
-

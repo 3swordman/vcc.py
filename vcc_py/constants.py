@@ -13,7 +13,7 @@
 
 from __future__ import annotations
 
-from enum import IntEnum
+from enum import Enum, IntEnum
 from typing import NamedTuple, Final, TYPE_CHECKING
 
 from dataclasses import dataclass
@@ -56,6 +56,10 @@ class REQ(IntEnum):
     SYS_INFO = 13
     CTL_SENAME = 14
     CTL_QUITS = 15
+
+class Mode(Enum):
+    NORMAL = 0
+    ROBOT = 1
 
 class RawRequest(NamedTuple):
     magic: int
@@ -112,6 +116,7 @@ class MyData:
     sess_list: list[str]
     level: int
     type: bool
+    mode: Mode
     
 class ExitError(Exception):
     pass

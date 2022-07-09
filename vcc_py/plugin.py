@@ -12,9 +12,10 @@
 # <https://www.gnu.org/licenses/>. 
 
 from __future__ import annotations
+import logging
 
 from types import TracebackType
-from typing import Awaitable, Callable, TypeAlias, overload, Any
+from typing import Awaitable, Callable, Generator, TypeAlias, overload, Any
 import runpy
 
 from .sock import Connection
@@ -25,6 +26,7 @@ from .commands import new_commands
 send_hook_type: TypeAlias = Callable[[str], str | None]
 recv_hook_type: TypeAlias = Callable[[Request], Request | None]
 cmd_type: TypeAlias = Callable[[Connection, list[str]], Awaitable[None]]
+init_func_type: TypeAlias = Callable[[MyData], Generator[None, None, None]]
 
 class Plugin:
     def __init__(self, data: MyData) -> None:
@@ -32,6 +34,8 @@ class Plugin:
         self._send_hooks: list[send_hook_type] = []
         self._recv_hooks: list[recv_hook_type] = []
         self.cmds: dict[str, cmd_type] = {}
+        self._init_funcs: list[init_func_type] = []
+        self._init_results: list[Generator[None, None, None]] = []
 
     def get_send_hooks(self) -> list[send_hook_type]:
         return self._send_hooks
@@ -47,6 +51,29 @@ class Plugin:
         self._recv_hooks.append(func)
         return func
 
+    def get_init_funcs(self) -> list[init_func_type]:
+        return self._init_funcs
+
+    def register_init_func(self, func: init_func_type) -> init_func_type:
+        self._init_funcs.append(func)
+        return func
+
+    def init(self) -> None:
+        self._init_results += [i(self._data) for i in self._init_funcs]
+        for i in self._init_results:
+            next(i)
+        self._init_funcs.clear()
+
+    def deinit(self) -> None:
+        for i in self._init_results:
+            try:
+                next(i)
+            except StopIteration:
+                pass
+            else:
+                logging.error("An unexpected bug happened")
+        self._init_results.clear()
+
     @overload
     def register_cmd(self, name_or_func: str) -> Callable[[cmd_type], cmd_type]: ...
 
@@ -61,12 +88,15 @@ class Plugin:
         return func if isinstance(name_or_func, str) else func(name_or_func)
 
 class Plugins:
-    def __init__(self, conn: Connection) -> None:
+    def __init__(self, conn: Connection, extra_plugin: str | None = None) -> None:
         self.connection = conn
+        self.extra_plugin = extra_plugin
 
     async def __aenter__(self) -> Plugins:
         self.configs = Configs()
         self.module_names = self.configs.plugin_list
+        if self.extra_plugin is not None:
+            self.module_names.append(self.extra_plugin)
         self.modules: list[dict[str, Any]] = []
         self.plugs: list[Plugin] = []
         for name in self.module_names:
@@ -74,6 +104,7 @@ class Plugins:
             self.modules.append(runpy.run_module(f"vcc_py.plugins.{name}", {
                 "plugin": plug
             }))
+            plug.init()
             self.plugs.append(plug)
 
             # result = init(plug)
@@ -96,7 +127,8 @@ class Plugins:
         new_commands(plug.cmds)
 
     async def __aexit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None) -> None:
-        pass
+        for plug in self.plugs:
+            plug.deinit()
 
     def send_msg(self, msg_: str) -> str | None:
         msg: str | None = msg_

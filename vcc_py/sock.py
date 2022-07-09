@@ -13,7 +13,7 @@
 from __future__ import annotations
 
 from types import TracebackType
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast, overload
 import asyncio
 import logging
 import struct
@@ -38,7 +38,7 @@ def bad_ntohl(value: int) -> int:
 class Connection:
     """A wrapper of socket which can recv or send messages and it's most method is asynchronous"""
     # plugs: Plugins
-    def __init__(self, ip: str=VCC_DEFAULT_IP, port: int=VCC_PORT, usrname: str="", sess: int=0) -> None:
+    def __init__(self, ip: str=VCC_DEFAULT_IP, port: int=VCC_PORT, usrname: str="", sess: int=0, mode: Mode=Mode.NORMAL) -> None:
         ip_address = ipaddress.ip_address(ip)
         self.version = ip_address.version
         self.ip = ip
@@ -50,7 +50,8 @@ class Connection:
             sess = sess,
             sess_list = [],
             level = 0,
-            type = False
+            type = False,
+            mode = mode
         )
     
     async def __aenter__(self) -> Connection:
@@ -125,6 +126,21 @@ class Connection:
 
         await loop.sock_sendall(self._sock, msg.encode() + b"\0")
 
+    @classmethod
+    @overload
+    def to_normal(cls, content: int) -> int: ...
+
+    @classmethod
+    @overload
+    def to_normal(cls, content: bytes) -> str: ...
+
+    @classmethod
+    def to_normal(cls, content: int | bytes) -> int | str:
+        if isinstance(content, int):
+            return bad_ntohl(content)
+        else:
+            return content.decode(errors="ignore").split("\x00")[0]
+
     async def recv(self) -> tuple[RawRequest, Request] | tuple[RawRelay, Relay]:
         loop = asyncio.get_event_loop()
 
@@ -139,14 +155,7 @@ class Connection:
             raw_recv_data += await loop.sock_recv(self._sock, size)
             self._waiting_for_recv = False
             raw_relay_data = RawRelay(*struct.unpack(VCC_RELAY_HEADER_FORMAT + f"{size}s", raw_recv_data))
-            magic = bad_ntohl(raw_relay_data.magic)
-            type = bad_ntohl(raw_relay_data.type)
-            uid = bad_ntohl(raw_relay_data.uid)
-            session = bad_ntohl(raw_relay_data.session)
-            usrname = raw_relay_data.usrname.decode(errors="ignore").split("\x00")[0]
-            visible = raw_relay_data.visible.decode(errors="ignore").split("\x00")[0]
-            msg = raw_relay_data.msg.decode(errors="ignore").split("\x00")[0]
-            relay_tuple_data = Relay(magic, type, size, uid, session, usrname, visible, msg)
+            relay_tuple_data = Relay(**{key: cast(Any, self.to_normal(value)) for key, value in raw_relay_data._asdict().items()})
             logging.debug(f"raw relay content: {repr(raw_relay_data)}")
             logging.debug(f"relay content: {repr(relay_tuple_data)}")
             return raw_relay_data, relay_tuple_data
@@ -156,9 +165,7 @@ class Connection:
         tuple_data = struct.unpack(VCC_REQUEST_FORMAT, raw_recv_data)
         self._waiting_for_recv = False
         raw_request = RawRequest(*tuple_data)
-        decode_username = raw_request.usrname.decode(errors="ignore").split("\x00")[0]
-        decode_msg = raw_request.msg.decode(errors="ignore").split("\x00")[0]
-        request = Request(bad_ntohl(raw_request.magic), bad_ntohl(raw_request.type), bad_ntohl(raw_request.uid), bad_ntohl(raw_request.session), raw_request.flags, decode_username, decode_msg)
+        request = Request(**{key: cast(Any, self.to_normal(value) if key != "flags" else value) for key, value in raw_request._asdict().items()})
         logging.debug(f"raw request content: {repr(raw_request)}")
         logging.debug(f"request content: {repr(request)}")
         return raw_request, request

@@ -39,6 +39,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-p", "--port", type=int, metavar="port", default=VCC_PORT, help="specified the port the server use (defualt: 46)")
     parser.add_argument("-u", "--user", type=str, metavar="username", help="the username you want to use")
     parser.add_argument("-D", "--debug", action="store_true", help="enable debug mode")
+    parser.add_argument("-r", "--robot", action="store_true", help="enable robot mode")
+    parser.add_argument("--plugin", type=str, metavar="plugin", help="load plugin automatically")
     parser.add_argument(dest="ip", metavar="ip", nargs="?", default=VCC_DEFAULT_IP, help="the ip address of the server")
     return parser.parse_args()
 
@@ -50,6 +52,8 @@ async def recv_loop(conn: Connection, plugs: Plugins) -> None:
                 flag = MSG_NEW_RELAY
                 if req.uid:
                     flag |= MSG_NEW_ONLY_VISIBLE
+                if conn.data.mode == Mode.ROBOT:
+                    continue
                 try:
                     do_bh(req, req_raw, conn.data)
                 except Exception:
@@ -60,45 +64,51 @@ async def recv_loop(conn: Connection, plugs: Plugins) -> None:
                 if _req is None:
                     continue
                 req = _req
+                if conn.data.mode == Mode.ROBOT:
+                    continue
                 if req.type == REQ.MSG_NEW:
                     pretty.show_msg(req.usrname, req.msg, req.session, newlinefirst=True)
                 else:
                     do_bh(req, req_raw, conn.data)
     except asyncio.CancelledError:
-            return
+        return
 
 async def input_send_loop(conn: Connection, plugs: Plugins, quit_func: Callable[[], bool]) -> None:
     session: PromptSession[str] = PromptSession()
-    while True:
-        pretty.prompt(curr_usrname, conn.data.sess, conn.data.level)
-        try:
-            msg = await session.prompt_async("", auto_suggest=AutoSuggestFromHistory())
-        except asyncio.CancelledError:
-            return
-        except KeyboardInterrupt:
-            continue
-        except EOFError:
-            quit_func()
-            return
-        _msg = plugs.send_msg(msg)
-        if _msg is None:
-            continue
-        msg = _msg
-        if not msg:
-            continue
-        if msg[0] == "-":
+    try:
+        while True:
+            if conn.data.mode == Mode.ROBOT:
+                await asyncio.sleep(1)
+                continue
+            pretty.prompt(curr_usrname, conn.data.sess, conn.data.level)
             try:
-                await do_cmd(msg, conn)
-            except ExitError:
+                msg = await session.prompt_async("", auto_suggest=AutoSuggestFromHistory())
+            except KeyboardInterrupt:
+                continue
+            except EOFError:
                 quit_func()
                 return
-            continue
-        await conn.send(
-            type=REQ.MSG_SEND,
-            usrname=curr_usrname,
-            msg=msg
-        )
-        pretty.show_msg(curr_usrname, msg, conn.data.sess)
+            _msg = plugs.send_msg(msg)
+            if _msg is None:
+                continue
+            msg = _msg
+            if not msg:
+                continue
+            if msg[0] == "-":
+                try:
+                    await do_cmd(msg, conn)
+                except ExitError:
+                    quit_func()
+                    return
+                continue
+            await conn.send(
+                type=REQ.MSG_SEND,
+                usrname=curr_usrname,
+                msg=msg
+            )
+            pretty.show_msg(curr_usrname, msg, conn.data.sess)
+    except asyncio.CancelledError:
+        return
 
 connection: Connection
 curr_usrname: str
@@ -150,7 +160,7 @@ async def main() -> None:
     
     curr_usrname, password = get_username_and_password_or_session()
 
-    async with Connection(ip, args.port, curr_usrname) as connection:
+    async with Connection(ip, args.port, curr_usrname, mode=Mode.ROBOT if args.robot else Mode.NORMAL) as connection:
         logging.debug("init the socket successfully")
         await connection.send(
             type=REQ.CTL_LOGIN,
@@ -165,7 +175,7 @@ async def main() -> None:
         if not uid:
             raise Exception("login failed: wrong password or user doesn't exists")
         logging.debug("login successfully")
-        async with Plugins(connection) as plugs:
+        async with Plugins(connection, extra_plugin=args.plugin) as plugs:
             connection.data.plugs = plugs
             recv_loop_task = asyncio.create_task(recv_loop(connection, plugs))
             input_send_loop_task = asyncio.create_task(input_send_loop(connection, plugs, lambda: recv_loop_task.cancel()))
