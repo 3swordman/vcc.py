@@ -33,7 +33,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        pip install build twine setuptools mypy prompt_toolkit
+        pip install build twine setuptools mypy prompt_toolkit pyyaml types-PyYAML
     
     - name: Run linters
       uses: wearerequired/lint-action@v2

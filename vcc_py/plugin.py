@@ -29,8 +29,9 @@ cmd_type: TypeAlias = Callable[[Connection, list[str]], Awaitable[None]]
 init_func_type: TypeAlias = Callable[[MyData], Generator[None, None, None]]
 
 class Plugin:
-    def __init__(self, data: MyData) -> None:
+    def __init__(self, data: MyData, configs: Configs) -> None:
         self._data = data
+        self.configs = configs
         self._send_hooks: list[send_hook_type] = []
         self._recv_hooks: list[recv_hook_type] = []
         self.cmds: dict[str, cmd_type] = {}
@@ -100,7 +101,7 @@ class Plugins:
         self.modules: list[dict[str, Any]] = []
         self.plugs: list[Plugin] = []
         for name in self.module_names:
-            plug = Plugin(self.connection.data)
+            plug = Plugin(self.connection.data, self.configs)
             self.modules.append(runpy.run_module(f"vcc_py.plugins.{name}", {
                 "plugin": plug
             }))
@@ -119,7 +120,7 @@ class Plugins:
         return self
 
     async def add_plugin(self, name: str) -> None:
-        plug = Plugin(self.connection.data)
+        plug = Plugin(self.connection.data, self.configs)
         self.modules.append(runpy.run_module(f"vcc_py.plugins.{name}", {
             "plugin": plug
         }))

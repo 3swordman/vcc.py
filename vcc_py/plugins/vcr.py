@@ -11,18 +11,17 @@
 # You should have received a copy of the GNU General Public License along with vcc.py. If not, see 
 # <https://www.gnu.org/licenses/>. 
 
-from pathlib import Path
 from typing import Generator
 import os
 
 from vcc_py.constants import *
 from vcc_py.plugin import Plugin
-from vcc_py.readconf import parse
+
+# This is not encourged to use, you had better write a plugin instead
 
 plugin: Plugin = globals()["plugin"]
 
-config_text = (Path.home() / ".vcc-config").read_bytes().decode(errors="ignore")
-config = parse(config_text)
+config = plugin.configs.config
 
 sid = config["vcr_listen_sid"]
 

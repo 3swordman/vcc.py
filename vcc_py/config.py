@@ -13,19 +13,24 @@
 
 
 from pathlib import Path
+from typing import Any
+import yaml
+
+from .readconf import parse
 
 class Configs:
     def __init__(self) -> None:
-        config_parent_directory_path = Path.home() / ".config"
-        config_parent_directory_path.mkdir(0o700, exist_ok=True)
+        readconf_config_path = Path.home() / ".vcc-config"
+        yaml_config_path = Path.home() / ".vcc-config.yaml"
+        if readconf_config_path.exists():
+            config_text = readconf_config_path.read_bytes().decode(errors="ignore")
+            self.config: dict[str, Any] = parse(config_text)
+        else:
+            config_text = yaml_config_path.read_bytes().decode(errors="ignore")
+            self.config = yaml.safe_load(config_text)
+        plugins: str | list[str] = self.config.get("plugins", "")
+        if isinstance(plugins, str):
+            self.plugin_list = plugins.split(" ")
+        else:
+            self.plugin_list = plugins
 
-        config_directory_path = config_parent_directory_path / "vcc"
-        config_directory_path.mkdir(0o700, exist_ok=True)
-
-        plugins_list_path = config_directory_path / "plugins.txt"
-        if not plugins_list_path.exists():
-            plugins_list_path.touch(0o700)
-
-        with plugins_list_path.open("r") as file:
-            self.plugin_list = [i for i in file.read().split("\n") if i]
-        self.plugin_list += ["ban"]
